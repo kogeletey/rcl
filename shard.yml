@@ -1,0 +1,11 @@
+name: rcl
+version: 1.0.0
+
+description: RCL (Ray Configuration Language) parser
+
+authors:
+  - Your Name
+
+crystal: ">= 1.0.0"
+
+license: MIT

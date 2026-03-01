@@ -1,0 +1,23 @@
+# Crystal
+.crystal
+lib/
+shard.lock
+*.so
+
+# Build output
+build/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tree-sitter
+treesitter/node_modules/
+treesitter/build/
