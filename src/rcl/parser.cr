@@ -24,33 +24,57 @@ module RCL
       Document.new(blocks)
     end
 
-    # Parse a block: name do ... end
+    # Parse a block: name [argument] do ... end
     private def parse_block : BlockNode
       name = @current_token.value
       eat(TokenType::Identifier)
+
+      # Optional string argument (e.g., akash "xray" do)
+      argument : String? = nil
+      if @current_token.type == TokenType::String
+        argument = @current_token.value
+        eat(TokenType::String)
+      end
+
       eat(TokenType::Do)
 
       properties = {} of String => ASTNode
       blocks = {} of String => BlockNode
+      named_blocks = [] of BlockNode
 
       while @current_token.type != TokenType::End
         if @current_token.type == TokenType::Identifier
+          # Look ahead to determine what kind of statement this is
+          # Could be: identifier do (block), identifier = (property), or identifier.identifier = (dotted property)
           next_token = peek_token
+
           if next_token.type == TokenType::Do
-            # Nested block
+            # Nested block: name do ... end
             block = parse_block
-            blocks[block.name] = block
-          elsif next_token.type == TokenType::Equal
-            # Property assignment
-            key = @current_token.value
-            eat(TokenType::Identifier)
+            if block.argument
+              # Block with argument - store in named_blocks
+              named_blocks << block
+              # Also store in blocks hash with composite key
+              blocks["#{block.name}:#{block.argument}"] = block
+            else
+              # Regular block - store by name
+              blocks[block.name] = block
+            end
+          elsif next_token.type == TokenType::Equal || next_token.type == TokenType::Dot
+            # Property assignment (may be dotted like socks.port = value)
+            key = parse_property_key
             eat(TokenType::Equal)
             value = parse_value
             properties[key] = value
           else
             # Unknown - treat as block
             block = parse_block
-            blocks[block.name] = block
+            if block.argument
+              named_blocks << block
+              blocks["#{block.name}:#{block.argument}"] = block
+            else
+              blocks[block.name] = block
+            end
           end
         else
           break
@@ -58,7 +82,24 @@ module RCL
       end
 
       eat(TokenType::End)
-      BlockNode.new(name, properties, blocks)
+      BlockNode.new(name, argument, properties, blocks, named_blocks)
+    end
+
+    # Parse property key (may include dots like enable.ip_lease)
+    private def parse_property_key : String
+      key = @current_token.value
+      eat(TokenType::Identifier)
+      
+      # Check for dotted property (e.g., enable.ip_lease)
+      while @current_token.type == TokenType::Dot
+        eat(TokenType::Dot)
+        if @current_token.type == TokenType::Identifier
+          key += "." + @current_token.value
+          eat(TokenType::Identifier)
+        end
+      end
+      
+      key
     end
 
     # Parse a value: string, number, boolean, or array

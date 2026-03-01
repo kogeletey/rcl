@@ -1,4 +1,4 @@
-require "spec_helper"
+require "../spec_helper"
 
 describe RCL::Lexer do
   describe "#next_token - strings" do

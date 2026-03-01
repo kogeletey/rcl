@@ -33,13 +33,17 @@ module RCL
   # Block/section with nested properties and blocks
   class BlockNode < ASTNode
     getter name : String
+    getter argument : String?
     getter properties : Hash(String, ASTNode)
     getter blocks : Hash(String, BlockNode)
+    getter named_blocks : Array(BlockNode)
 
     def initialize(
       @name,
+      @argument : String? = nil,
       @properties = {} of String => ASTNode,
-      @blocks = {} of String => BlockNode
+      @blocks = {} of String => BlockNode,
+      @named_blocks = [] of BlockNode
     )
     end
 
@@ -51,6 +55,17 @@ module RCL
     # Set property
     def []=(key : String, value : ASTNode)
       @properties[key] = value
+    end
+
+    # Add a named block (block with argument)
+    def add_named_block(block : BlockNode)
+      @named_blocks << block
+      # Also store in blocks hash with key "name:argument" for backward compatibility
+      if block.argument
+        @blocks["#{block.name}:#{block.argument}"] = block
+      else
+        @blocks[block.name] = block
+      end
     end
 
     # Check if has key

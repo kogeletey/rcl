@@ -1,4 +1,4 @@
-require "spec_helper"
+require "../spec_helper"
 
 describe RCL::Parser do
   describe "#parse - simple blocks" do

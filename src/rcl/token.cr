@@ -8,6 +8,7 @@ module RCL
     Number
     Equal
     Comma
+    Dot
     Do
     End
     LBracket

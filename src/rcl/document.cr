@@ -10,12 +10,17 @@ module RCL
 
     def initialize(@blocks = [] of BlockNode)
       @root = {} of String => ASTNode
-      
+
       # Flatten single root block if exists
       if @blocks.size == 1
         block = @blocks.first
         block.properties.each { |k, v| @root[k] = v }
         block.blocks.each { |k, v| @root[k] = v }
+      else
+        # Multiple blocks - index them by name
+        @blocks.each do |block|
+          @root[block.name] = block
+        end
       end
     end
 
@@ -29,9 +34,11 @@ module RCL
       parts = path.split('.')
       current : ASTNode? = @root[parts[0]]?
 
-      parts[1..-1]?.each do |part|
-        break unless current.is_a?(BlockNode)
-        current = current.as(BlockNode)[part]?
+      if rest = parts[1..-1]?
+        rest.each do |part|
+          break unless current.is_a?(BlockNode)
+          current = current.as(BlockNode)[part]?
+        end
       end
 
       current

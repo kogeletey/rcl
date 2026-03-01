@@ -22,6 +22,7 @@ module RCL
       case char
       when '=' then advance; Token.new(TokenType::Equal, "=", @line, @column)
       when ',' then advance; Token.new(TokenType::Comma, ",", @line, @column)
+      when '.' then advance; Token.new(TokenType::Dot, ".", @line, @column)
       when '[' then advance; Token.new(TokenType::LBracket, "[", @line, @column)
       when ']' then advance; Token.new(TokenType::RBracket, "]", @line, @column)
       when '"' then read_string
@@ -42,6 +43,11 @@ module RCL
     end
 
     private def peek : Char?
+      @input[@pos + 1]?
+    end
+
+    # Peek at character after current position (public for parser)
+    def peek_char : Char?
       @input[@pos + 1]?
     end
 
@@ -115,7 +121,7 @@ module RCL
       end
 
       # Read decimal part if present
-      if current_char == '.' && peek.try(&.ascii_number?)
+      if @pos < @input.size && current_char == '.' && peek.try(&.ascii_number?)
         value += '.'
         advance
         while @pos < @input.size && current_char.ascii_number?
