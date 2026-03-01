@@ -26,13 +26,13 @@
 #     {:ok, {address: block["address"]}.named_tuple}
 #   end
 
-require_relative "./rcl/version"
-require_relative "./rcl/token"
-require_relative "./rcl/ast"
-require_relative "./rcl/lexer"
-require_relative "./rcl/parser"
-require_relative "./rcl/document"
-require_relative "./rcl/blocks"
+require "./rcl/version"
+require "./rcl/token"
+require "./rcl/ast"
+require "./rcl/lexer"
+require "./rcl/parser"
+require "./rcl/document"
+require "./rcl/blocks"
 
 module RCL
   # Parse RCL file and return Document
