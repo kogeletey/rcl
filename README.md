@@ -1,14 +1,14 @@
-# RCL - Ray Configuration Language
+# RCL - Ruby-like Configuration Language
 
-A TOML-like configuration language parser written in Crystal.
+A Ruby-like configuration language parser written in Crystal.
 
 ## Features
 
-- 📝 **TOML-like syntax** - Simple, readable configuration format
-- 🔧 **Standalone parser** - Independent library, reusable for any project
-- 🧩 **Custom block handlers** - Register handlers for specific block types
-- 📊 **Type-safe values** - Strings, numbers, booleans, arrays, nested blocks
-- 💬 **Comments** - Support for `#` and `//` comments
+- Ruby-like syntax - Simple, readable configuration format
+- Standalone parser - Independent library, reusable for any project
+- Custom block handlers - Register handlers for specific block types
+- Type-safe values - Strings, numbers, booleans, arrays, nested blocks
+- Comments - Support for # and // comments
 
 ## Installation
 

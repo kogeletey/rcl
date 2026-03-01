@@ -1,14 +1,14 @@
-# RCL - Ray Configuration Language
+# RCL - Ruby-like Configuration Language
 
-A TOML-like configuration language parser written in Crystal.
+A Ruby-like configuration language parser written in Crystal.
 
 ## Features
 
-- 📝 **TOML-like syntax** - Simple, readable configuration format
-- 🔧 **Standalone parser** - Independent library, reusable for any project
-- 🧩 **Custom block handlers** - Register handlers for specific block types
-- 📊 **Type-safe values** - Strings, numbers, booleans, arrays, nested blocks
-- 💬 **Comments** - Support for `#`, `//`, and `;` comments
+- Ruby-like syntax - Simple, readable configuration format
+- Standalone parser - Independent library, reusable for any project
+- Custom block handlers - Register handlers for specific block types
+- Type-safe values - Strings, numbers, booleans, arrays, nested blocks
+- Comments - Support for # and // comments
 
 ## Installation
 
@@ -17,8 +17,7 @@ Add to your `shard.yml`:
 ```yaml
 dependencies:
   rcl:
-    github: yourusername/xray-dsl
-    path: lib/rcl
+    github: yourusername/rcl
 ```
 
 ## Usage
@@ -63,7 +62,7 @@ database do
   host = "localhost"
   port = 5432
   name = "myapp"
-  
+
   pool do
     size = 10
     timeout = 30.5
@@ -131,13 +130,12 @@ disabled = false
 # Arrays
 items = ["apple", "banana", "cherry"]
 numbers = [1, 2, 3, 4, 5]
-mixed = [1, "two", 3.0]
 
 # Nested blocks
 server do
   host = "localhost"
   port = 3000
-  
+
   ssl do
     enabled = true
     cert = "/path/to/cert"

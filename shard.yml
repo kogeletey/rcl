@@ -1,7 +1,7 @@
 name: rcl
 version: 1.0.0
 
-description: RCL (Ray Configuration Language) parser
+description: RCL (Ruby-like Configuration Language) parser
 
 authors:
   - Your Name
