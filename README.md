@@ -115,6 +115,17 @@ Multi-language workspace is available under `implementations/`.
 - `implementations/kotlin` - Kotlin parser + formatter + converters
 - `implementations/swift` - Swift parser + formatter + converters
 - `implementations/rust` - Rust parser + formatter + converters
+- `implementations/php` - PHP parser + formatter + converters
+- `implementations/elixir` - Elixir parser + formatter + converters
+- `implementations/ocaml` - OCaml parser + formatter + converters
+- `implementations/julia` - Julia parser + formatter + converters
+- `implementations/c` - C parser + formatter + converters
+- `implementations/cpp` - C++ parser + formatter + converters
+- `implementations/zig` - Zig parser + formatter + converters
+- `implementations/java` - Java parser + formatter + converters
+- `implementations/d` - D parser + formatter + converters
+- `implementations/csharp` - C# parser + formatter + converters
+- `implementations/lua` - Lua parser + formatter + converters
 
 ## License
 
