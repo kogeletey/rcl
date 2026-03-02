@@ -22,7 +22,8 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
       - run: npm install
-      - run: npm test
+      - run: npm run build
+      - run: npm pack --dry-run
       - run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -45,7 +46,8 @@ jobs:
           OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
           npm pkg set name="@${OWNER_LC}/tree-sitter-rcl"
       - run: npm install
-      - run: npm test
+      - run: npm run build
+      - run: npm pack --dry-run
       - run: npm publish --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
