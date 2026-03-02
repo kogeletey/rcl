@@ -4,6 +4,7 @@
 
 Status matrix:
 
+- `crystal`: parse + format + convert + tests (spec conformance + edge cases)
 - `typescript`: parse + format + convert + tests (spec conformance + edge cases)
 - `go`: parse + format + convert + tests (spec conformance + edge cases)
 - `kotlin`: parse + format + convert + tests (spec conformance + edge cases)

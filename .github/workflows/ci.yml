@@ -85,12 +85,12 @@ jobs:
       - uses: actions/checkout@v4
       - run: swift test
 
-  actions-generator:
+  crystal:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/crystal
     steps:
       - uses: actions/checkout@v4
       - uses: crystal-lang/install-crystal@v1
-      - name: Generate workflows from RCL DSL
-        run: crystal run shards/actions/scripts/generate_workflows.cr
-      - name: Check generated workflow fixture
-        run: diff -u shards/actions/fixtures/expected/generated-ci.yml .github/workflows/generated-ci.yml
+      - run: crystal spec

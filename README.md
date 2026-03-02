@@ -16,12 +16,12 @@ A Ruby-like configuration language parser written in Crystal.
 
 ## Installation
 
-Add to your `shard.yml`:
+For local development, add dependency from monorepo path:
 
 ```yaml
 dependencies:
   rcl:
-    github: yourusername/rcl
+    path: ./packages/crystal
 ```
 
 ## Usage
@@ -95,19 +95,20 @@ features = ["auth", "logging", "cache"]
 
 ```bash
 # Install dependencies
-crystal deps
+cd packages/crystal && crystal deps
 
 # Run tests
-crystal spec
+cd packages/crystal && crystal spec
 
 # Build
-crystal build
+cd packages/crystal && crystal build src/rcl.cr
 ```
 
 ## Packages
 
 Multi-language package workspace is available under `packages/`.
 
+- `packages/crystal` - Crystal parser + formatter + converters
 - `packages/ruby` - Ruby parser + formatter
 - `packages/typescript` - TypeScript parser + formatter
 - `packages/go` - Go parser + formatter + converters
