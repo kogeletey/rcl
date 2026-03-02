@@ -7,13 +7,21 @@ on:
 
 jobs:
   csharp:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: implementations/csharp
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y mono-mcs
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update
+      - if: runner.os == 'Linux'
+        run: sudo apt-get install -y mono-mcs
+      - if: runner.os == 'macOS'
+        run: brew install mono
       - run: mcs -out:test_bin src/*.cs test/Test.cs
       - run: mono test_bin

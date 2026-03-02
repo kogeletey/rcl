@@ -7,11 +7,15 @@ on:
 
 jobs:
   c:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: implementations/c
     steps:
       - uses: actions/checkout@v4
-      - run: gcc -std=c11 -Wall -Wextra -O2 rcl.c rcl_ast.c rcl_lexer.c rcl_parser.c rcl_parser_value.c rcl_project.c rcl_format.c rcl_convert.c test.c -o test_bin
+      - run: cc -std=c11 -Wall -Wextra -O2 rcl.c rcl_ast.c rcl_lexer.c rcl_parser.c rcl_parser_value.c rcl_project.c rcl_format.c rcl_convert.c test.c -o test_bin
       - run: ./test_bin

@@ -7,11 +7,15 @@ on:
 
 jobs:
   cpp:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: implementations/cpp
     steps:
       - uses: actions/checkout@v4
-      - run: g++ -std=c++17 -Wall -Wextra -O2 rcl.cpp rcl_ast.cpp rcl_lexer.cpp rcl_parser.cpp rcl_project.cpp rcl_format.cpp rcl_convert.cpp test.cpp -o test_bin
+      - run: c++ -std=c++17 -Wall -Wextra -O2 rcl.cpp rcl_ast.cpp rcl_lexer.cpp rcl_parser.cpp rcl_project.cpp rcl_format.cpp rcl_convert.cpp test.cpp -o test_bin
       - run: ./test_bin
