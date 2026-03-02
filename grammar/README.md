@@ -15,7 +15,7 @@ npm install -g tree-sitter-cli
 ### Build Parser
 
 ```bash
-cd treesitter
+cd grammar
 npm install
 tree-sitter generate
 ```
@@ -46,7 +46,7 @@ require('nvim-treesitter.configs').setup {
 local parser_config = require("nvim-treesitter.parsers").get_parser_configs()
 parser_config.rcl = {
   install_info = {
-    url = "/path/to/vless/treesitter",
+    url = "/path/to/vless/grammar",
     files = {"src/parser.c"},
     branch = "main",
   },
@@ -58,7 +58,7 @@ parser_config.rcl = {
 
 ```bash
 # Build the parser
-cd treesitter
+cd grammar
 tree-sitter generate
 tree-sitter build --wasm
 
