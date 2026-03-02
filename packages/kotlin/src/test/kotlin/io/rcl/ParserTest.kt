@@ -27,7 +27,10 @@ class ParserTest {
     val ast = Parser.parse(source)
     assertEquals("document", ast.kind)
     assertEquals("server", ast.blocks.first().name)
-    assertTrue(ast.blocks.first().properties.containsKey("tls.cert_path"))
+    val obj = Converters.toObject(ast)
+    val server = obj["server"] as Map<*, *>
+    val tls = server["tls"] as Map<*, *>
+    assertEquals("/etc/cert.pem", tls["cert_path"])
 
     val out = Formatter.format(ast)
     val reparsed = Parser.parse(out)
@@ -58,5 +61,16 @@ class ParserTest {
     assertTrue(Converters.toYaml(ast).contains("region:"))
     assertTrue(Converters.toToml(ast).contains("[region.us]"))
     assertTrue(Converters.toHcl(ast).contains("region {"))
+  }
+
+  @Test
+  fun strictEdgeFailures() {
+    val bad = listOf(
+      "x do\n  name = value\nend",
+      "x do\n  arr = [1,]\nend",
+      "x do\n  a = 1\n  a = 2\nend",
+      "x do\n  a = 1\n  a.b = 2\nend",
+    )
+    bad.forEach { src -> assertFailsWith<ParseError> { Parser.parse(src) } }
   }
 }

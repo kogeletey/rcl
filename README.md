@@ -36,9 +36,9 @@ doc = RCL.parse_file("config.rcl")
 doc = RCL.parse_string("key = \"value\"")
 
 # Access values
-doc.get_string("server/address")
-doc.get_int("server/port")
-doc.get_bool("feature/enabled")
+doc.get_string("server.address")
+doc.get_int("server.port")
+doc.get_bool("feature.enabled")
 
 # Convert to Hash
 hash = doc.to_h
@@ -54,6 +54,28 @@ yaml = RCL.to_yaml(doc)
 toml = RCL.to_toml(doc)
 hcl = RCL.to_hcl(doc)
 ```
+
+Named block projection example:
+
+```rcl
+config do
+  region "us" do
+    name = "My name"
+  end
+end
+```
+
+```json
+{ "region": { "us": { "name": "My name" } } }
+```
+
+Constraints:
+
+- Comments: `#` only
+- Strings: double quotes only (`"..."`)
+- Bare identifier values are invalid (`name = value` fails)
+- Dotted keys are nested (`a.b = 1` -> `{a: {b: 1}}`)
+- Duplicate/conflicting key paths fail
 
 ## Example RCL File
 

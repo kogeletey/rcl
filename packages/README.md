@@ -4,9 +4,9 @@
 
 Status matrix:
 
-- `typescript`: parse + format + tests (full spec)
-- `go`: parse + format + tests (full spec)
-- `kotlin`: parse + format + tests (full spec)
-- `swift`: parse + format + tests (full spec)
-- `rust`: parse + format + tests (full spec)
+- `typescript`: parse + format + convert + tests (spec conformance + edge cases)
+- `go`: parse + format + convert + tests (spec conformance + edge cases)
+- `kotlin`: parse + format + convert + tests (spec conformance + edge cases)
+- `swift`: parse + format + convert + tests (spec conformance + edge cases)
+- `rust`: parse + format + convert + tests (spec conformance + edge cases)
 - `ruby`: parse + format + tests

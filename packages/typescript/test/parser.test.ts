@@ -24,7 +24,7 @@ test("full spec parse + format", () => {
   assert.equal(ast.blocks[0]?.name, "server");
   assert.equal((ast.blocks[0]?.properties["enabled"] as any).value, true);
   assert.equal((ast.blocks[0]?.properties["negative"] as any).value, -42);
-  assert.equal((ast.blocks[0]?.properties["tls.cert_path"] as any).kind, "string");
+  assert.equal(((toObject(ast).tls as any).cert_path as any), "/etc/cert.pem");
 
   const out = format(ast);
   const reparsed = parse(out);
@@ -54,5 +54,18 @@ test("syntax error includes position", () => {
   if (!res.ok) {
     assert.ok(res.error.line > 0);
     assert.ok(res.error.column > 0);
+  }
+});
+
+test("strict key/value edges", () => {
+  const bad = [
+    "x do\n  name = value\nend",
+    "x do\n  arr = [1,]\nend",
+    "x do\n  a = 1\n  a = 2\nend",
+    "x do\n  a = 1\n  a.b = 2\nend",
+  ];
+  for (const src of bad) {
+    const res = parseSafe(src);
+    assert.equal(res.ok, false);
   }
 });

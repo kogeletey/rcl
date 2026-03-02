@@ -24,6 +24,7 @@ class Parser private constructor(private val lexer: Lexer) {
     val properties = linkedMapOf<String, AstNode>()
     val blocks = linkedMapOf<String, BlockNode>()
     val named = mutableListOf<BlockNode>()
+    val seen = linkedSetOf<String>()
 
     while (current.type != TokenType.End) {
       if (current.type == TokenType.EOF) throw error("missing end")
@@ -33,11 +34,11 @@ class Parser private constructor(private val lexer: Lexer) {
           val child = parseBlock()
           if (child.argument != null) {
             named += child
-            blocks["${child.name}:${child.argument}"] = child
           } else blocks[child.name] = child
         }
         TokenType.Equal, TokenType.Dot -> {
           val key = parsePropertyKey()
+          ensureKeyValid(key, seen)
           eat(TokenType.Equal)
           properties[key] = parseValue()
         }
@@ -67,7 +68,11 @@ class Parser private constructor(private val lexer: Lexer) {
     TokenType.Identifier -> {
       val v = current.value
       eat(TokenType.Identifier)
-      when (v) { "true" -> BooleanNode(value = true); "false" -> BooleanNode(value = false); else -> StringNode(value = v) }
+      when (v) {
+        "true" -> BooleanNode(value = true)
+        "false" -> BooleanNode(value = false)
+        else -> throw error("invalid bare value")
+      }
     }
     TokenType.LBracket -> parseArray()
     else -> throw error("unexpected value")
@@ -78,7 +83,11 @@ class Parser private constructor(private val lexer: Lexer) {
     val elements = mutableListOf<AstNode>()
     if (current.type != TokenType.RBracket) {
       elements += parseValue()
-      while (current.type == TokenType.Comma) { eat(TokenType.Comma); elements += parseValue() }
+      while (current.type == TokenType.Comma) {
+        eat(TokenType.Comma)
+        if (current.type == TokenType.RBracket) throw error("trailing comma in array")
+        elements += parseValue()
+      }
     }
     eat(TokenType.RBracket)
     return ArrayNode(elements = elements)
@@ -97,4 +106,20 @@ class Parser private constructor(private val lexer: Lexer) {
   }
 
   private fun error(message: String): ParseError = ParseError(message, current.line, current.column)
+
+  private fun ensureKeyValid(key: String, seen: MutableSet<String>) {
+    if (seen.contains(key)) throw error("duplicate key")
+    val parts = key.split(".")
+    seen.forEach { existing ->
+      val ex = existing.split(".")
+      if (isPrefix(parts, ex) || isPrefix(ex, parts)) throw error("key conflict")
+    }
+    seen.add(key)
+  }
+
+  private fun isPrefix(left: List<String>, right: List<String>): Boolean {
+    if (left.size >= right.size) return false
+    left.indices.forEach { if (left[it] != right[it]) return false }
+    return true
+  }
 }

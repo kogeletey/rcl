@@ -27,7 +27,7 @@ module RCL
             lines << "#{"  " * indent}#{key}:"
             lines << emit_yaml(item, indent + 1)
           else
-            lines << "#{"  " * indent}#{key}: #{yaml_scalar(item)}"
+            lines << "#{"  " * indent}#{key}: #{emit_scalar(item)}"
           end
         end
         lines.join("\n")
@@ -38,19 +38,19 @@ module RCL
             lines << "#{"  " * indent}-"
             lines << emit_yaml(item, indent + 1)
           else
-            lines << "#{"  " * indent}- #{yaml_scalar(item)}"
+            lines << "#{"  " * indent}- #{emit_scalar(item)}"
           end
         end
         lines.join("\n")
       else
-        yaml_scalar(value)
+        emit_scalar(value)
       end
     end
 
     private def self.emit_toml_table(hash : Hash(String, RCL::Value), prefix : String?, out : Array(String))
       scalar_keys = hash.keys.select { |k| !hash[k].is_a?(Hash(String, RCL::Value)) }.sort
       scalar_keys.each do |key|
-        out << "#{key} = #{toml_scalar(hash[key])}"
+        out << "#{key} = #{emit_scalar(hash[key])}"
       end
 
       table_keys = hash.keys.select { |k| hash[k].is_a?(Hash(String, RCL::Value)) }.sort
@@ -73,16 +73,16 @@ module RCL
             lines << emit_hcl(item, indent + 1)
             lines << "#{"  " * indent}}"
           else
-            lines << "#{"  " * indent}#{key} = #{hcl_scalar(item)}"
+            lines << "#{"  " * indent}#{key} = #{emit_scalar(item)}"
           end
         end
         lines.join("\n")
       else
-        hcl_scalar(value)
+        emit_scalar(value)
       end
     end
 
-    private def self.yaml_scalar(value : RCL::Value) : String
+    private def self.emit_scalar(value : RCL::Value) : String
       case value
       when String
         %("#{escape_string(value)}")
@@ -91,37 +91,7 @@ module RCL
       when Bool
         value ? "true" : "false"
       when Array(RCL::Value)
-        "[#{value.map { |v| yaml_scalar(v) }.join(", ")}]"
-      when Hash(String, RCL::Value)
-        "{}"
-      end
-    end
-
-    private def self.toml_scalar(value : RCL::Value) : String
-      case value
-      when String
-        %("#{escape_string(value)}")
-      when Int32, Int64, Float64
-        value.to_s
-      when Bool
-        value ? "true" : "false"
-      when Array(RCL::Value)
-        "[#{value.map { |v| toml_scalar(v) }.join(", ")}]"
-      when Hash(String, RCL::Value)
-        "{}"
-      end
-    end
-
-    private def self.hcl_scalar(value : RCL::Value) : String
-      case value
-      when String
-        %("#{escape_string(value)}")
-      when Int32, Int64, Float64
-        value.to_s
-      when Bool
-        value ? "true" : "false"
-      when Array(RCL::Value)
-        "[#{value.map { |v| hcl_scalar(v) }.join(", ")}]"
+        "[#{value.map { |v| emit_scalar(v) }.join(", ")}]"
       when Hash(String, RCL::Value)
         "{}"
       end

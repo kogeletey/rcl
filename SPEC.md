@@ -1,59 +1,42 @@
-# RCL Language Specification
+# RCL v1 Specification
 
 ## 1. Overview
 
-RCL (Ruby-like Configuration Language) is a configuration DSL with explicit `do ... end` blocks,
-assignment-based properties, and typed scalar/array values.
+RCL is a Ruby-like configuration language with `do ... end` blocks, key assignments, arrays, and typed scalars.
 
-This specification defines:
+Normative words `MUST`, `MUST NOT`, `SHOULD`, `MAY` are interpreted as in RFC 2119.
 
-- lexical rules
-- grammar
-- AST and hash projection rules
-- conversion rules to YAML/TOML/HCL
-- error expectations
-
-## 2. Lexical Structure
+## 2. Lexical Rules
 
 ### 2.1 Whitespace
 
-- Spaces, tabs, and newlines are allowed between tokens.
-- Newlines do not have semantic meaning by themselves.
+- Space, tab, and newline are separators.
+- Newlines are not statement terminators.
 
 ### 2.2 Comments
 
-- Only `#` line comments are supported.
-- Everything from `#` to end-of-line is ignored.
-
-Example:
-
-```rcl
-# top-level comment
-server do
-  port = 8080 # inline comment
-end
-```
+- Only `#` line comments are valid.
+- `//` comments are invalid.
 
 ### 2.3 Identifiers
 
-- Must start with `[A-Za-z_]`
-- Continue with `[A-Za-z0-9_]`
+- Identifier MUST match `[A-Za-z_][A-Za-z0-9_]*`.
 
 ### 2.4 Strings
 
-- Only double-quoted strings are valid: `"..."`
-- Supported escapes: `\"`, `\\`, `\n`, `\t`
-- Single-quoted strings are invalid syntax.
+- String MUST use double quotes: `"..."`.
+- Supported escapes: `\"`, `\\`, `\n`, `\t`.
+- Single-quoted strings are invalid.
+- Unterminated strings and invalid escapes MUST fail.
 
 ### 2.5 Numbers
 
-- Integer: `123`, `-42`
-- Float: `3.14`, `-0.5`
+- Integer examples: `0`, `42`, `-42`.
+- Float examples: `3.14`, `-0.5`.
 
 ### 2.6 Booleans
 
-- `true`
-- `false`
+- `true`, `false`.
 
 ## 3. Grammar
 
@@ -68,126 +51,90 @@ value           ::= string | number | boolean | array
 array           ::= "[" (value ("," value)*)? "]"
 ```
 
-## 4. Data Model
+Rules:
 
-## 4.1 AST Nodes
+- Bare identifier values (example: `name = value`) are invalid.
+- Trailing comma in arrays is invalid.
 
-- `Document`
-- `BlockNode`
-- `StringNode`
-- `NumberNode`
-- `BooleanNode`
-- `ArrayNode`
+## 4. Data Projection
 
-## 4.2 Hash Projection (`to_h`)
+Projection result is JSON-like object/array/scalar.
 
-`Document#to_h` projects AST into nested maps/arrays/scalars.
+### 4.1 Root
 
-### 4.2.1 Properties
+- One root block: result is root block body.
+- Multiple root blocks: result is object keyed by root block name.
 
-`key = value` becomes:
+### 4.2 Dotted Keys
 
-```json
-{ "key": value }
-```
-
-### 4.2.2 Dotted keys
-
-`tls.cert_path = "/etc/cert.pem"` stays literal:
+`a.b.c = 1` MUST project as nested objects:
 
 ```json
-{ "tls.cert_path": "/etc/cert.pem" }
+{ "a": { "b": { "c": 1 } } }
 ```
 
-### 4.2.3 Regular blocks
+### 4.3 Named Blocks
+
+`region "us" do ... end` MUST project as:
+
+```json
+{ "region": { "us": { ... } } }
+```
+
+Example:
 
 ```rcl
-server do
-  port = 8080
+config do
+  region "us" do
+    name = "My name"
+  end
 end
 ```
-
-becomes:
-
-```json
-{ "server": { "port": 8080 } }
-```
-
-### 4.2.4 Named blocks (argument blocks)
-
-Any block with string argument is projected as `name -> arg -> object`.
-
-```rcl
-region "us" do
-  name = "My name"
-end
-```
-
-becomes:
 
 ```json
 { "region": { "us": { "name": "My name" } } }
 ```
 
-Multiple argument blocks merge under same base key:
+### 4.4 Duplicate/Conflict Policy
 
-```rcl
-region "us" do
-  name = "US"
-end
-region "eu" do
-  name = "EU"
-end
-```
+- Re-defining the same key path in one block MUST fail.
+- Prefix conflicts MUST fail.
+  - `a = 1` then `a.b = 2` is invalid.
+  - `a.b = 1` then `a = 2` is invalid.
 
-becomes:
-
-```json
-{
-  "region": {
-    "us": { "name": "US" },
-    "eu": { "name": "EU" }
-  }
-}
-```
-
-## 5. Formatting
+## 5. Formatter
 
 Canonical formatter emits:
 
-- double-quoted strings
-- explicit `do ... end` block structure
-- array literals with comma separators
+- double-quoted strings,
+- explicit `do ... end`,
+- array literals with comma separators.
 
-## 6. Native Conversion
+## 6. Native Conversions
 
-RCL provides native conversion from projected hash model to:
+Implementations expose conversion from projected object to:
 
-- YAML (`to_yaml`)
-- TOML (`to_toml`)
-- HCL (`to_hcl`)
+- YAML
+- TOML
+- HCL
 
-### 6.1 Conversion invariants
+Invariants:
 
-- Named blocks must stay `name -> arg -> object`.
-- Dotted keys remain literal keys.
-- Scalar values preserve type (`string`, `number`, `bool`).
+- Same projection input MUST produce equivalent structure in all formats.
+- Named block shape `name -> arg -> object` MUST be preserved.
+- Scalar types MUST be preserved.
 
 ## 7. Errors
 
-Parser must fail on:
+Parser MUST fail with line/column for:
 
-- unexpected token
-- unterminated string
-- invalid escape sequence
-- missing `end`
-- missing `]`
-- use of unsupported string form (single quotes)
-
-Error messages should include line and column where available.
-
-## 8. Compatibility Notes
-
-- `#` comments are supported.
-- `//` comments are not part of the language.
-- Single-quoted strings are not part of the language.
+- unexpected token/character,
+- missing `end`,
+- missing `]`,
+- invalid bare identifier value,
+- trailing comma in array,
+- duplicate key,
+- key path conflict,
+- unterminated string,
+- invalid escape,
+- single-quoted string usage.

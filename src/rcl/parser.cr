@@ -1,8 +1,6 @@
-# RCL Parser
-# Parses tokens into AST
-
 require "./lexer"
 require "./ast"
+require "set"
 
 module RCL
   class Parser
@@ -18,7 +16,6 @@ module RCL
       new(lexer).parse
     end
 
-    # Parse input and return Document
     def parse : Document
       blocks = [] of BlockNode
 
@@ -29,12 +26,10 @@ module RCL
       Document.new(blocks)
     end
 
-    # Parse a block: name [argument] do ... end
     private def parse_block : BlockNode
       name = @current_token.value
       eat(TokenType::Identifier)
 
-      # Optional string argument (e.g., akash "xray" do)
       argument : String? = nil
       if @current_token.type == TokenType::String
         argument = @current_token.value
@@ -46,28 +41,22 @@ module RCL
       properties = {} of String => ASTNode
       blocks = {} of String => BlockNode
       named_blocks = [] of BlockNode
+      seen_keys = Set(String).new
 
       while @current_token.type != TokenType::End
         if @current_token.type == TokenType::Identifier
-          # Look ahead to determine what kind of statement this is
-          # Could be: identifier do (block), identifier = (property), or identifier.identifier = (dotted property)
           next_token = peek_token
 
-          if next_token.type == TokenType::Do
-            # Nested block: name do ... end
+          if next_token.type == TokenType::Do || next_token.type == TokenType::String
             block = parse_block
             if block.argument
-              # Block with argument - store in named_blocks
               named_blocks << block
-              # Also store in blocks hash with composite key
-              blocks["#{block.name}:#{block.argument}"] = block
             else
-              # Regular block - store by name
               blocks[block.name] = block
             end
           elsif next_token.type == TokenType::Equal || next_token.type == TokenType::Dot
-            # Property assignment (may be dotted like socks.port = value)
             key = parse_property_key
+            ensure_property_key_valid!(key, seen_keys)
             eat(TokenType::Equal)
             value = parse_value
             properties[key] = value
@@ -76,7 +65,6 @@ module RCL
             block = parse_block
             if block.argument
               named_blocks << block
-              blocks["#{block.name}:#{block.argument}"] = block
             else
               blocks[block.name] = block
             end
@@ -90,24 +78,20 @@ module RCL
       BlockNode.new(name, argument, properties, blocks, named_blocks)
     end
 
-    # Parse property key (may include dots like enable.ip_lease)
     private def parse_property_key : String
       key = @current_token.value
       eat(TokenType::Identifier)
-      
-      # Check for dotted property (e.g., enable.ip_lease)
+
       while @current_token.type == TokenType::Dot
         eat(TokenType::Dot)
-        if @current_token.type == TokenType::Identifier
-          key += "." + @current_token.value
-          eat(TokenType::Identifier)
-        end
+        raise "Expected identifier after dot at line #{@current_token.line}, column #{@current_token.column}" unless @current_token.type == TokenType::Identifier
+        key += "." + @current_token.value
+        eat(TokenType::Identifier)
       end
-      
+
       key
     end
 
-    # Parse a value: string, number, boolean, or array
     private def parse_value : ASTNode
       case @current_token.type
       when TokenType::String
@@ -126,7 +110,7 @@ module RCL
         elsif value == "false"
           BooleanNode.new(false)
         else
-          StringNode.new(value)
+          raise "Invalid bare value '#{value}' at line #{@current_token.line}, column #{@current_token.column}"
         end
       when TokenType::LBracket
         parse_array
@@ -135,7 +119,6 @@ module RCL
       end
     end
 
-    # Parse array: [value, value, ...]
     private def parse_array : ArrayNode
       eat(TokenType::LBracket)
       elements = [] of ASTNode
@@ -144,6 +127,9 @@ module RCL
         elements << parse_value
         if @current_token.type == TokenType::Comma
           eat(TokenType::Comma)
+          if @current_token.type == TokenType::RBracket
+            raise "Trailing comma in array at line #{@current_token.line}, column #{@current_token.column}"
+          end
         end
       end
 
@@ -151,7 +137,6 @@ module RCL
       ArrayNode.new(elements)
     end
 
-    # Parse number string to appropriate type
     private def parse_number(value : String) : Int32 | Int64 | Float64
       if value.includes?('.')
         value.to_f
@@ -162,7 +147,6 @@ module RCL
       end
     end
 
-    # Consume expected token type
     private def eat(type : TokenType)
       if @current_token.type == type
         @current_token = @lexer.next_token
@@ -171,18 +155,38 @@ module RCL
       end
     end
 
-    # Peek at next token without consuming
     private def peek_token : Token
       saved_pos, saved_line, saved_col = @lexer.pos, @lexer.line, @lexer.column
       saved_token = @current_token
 
       token = @lexer.next_token
 
-      # Restore lexer state
       @lexer.pos, @lexer.line, @lexer.column = saved_pos, saved_line, saved_col
       @current_token = saved_token
 
       token
+    end
+
+    private def ensure_property_key_valid!(key : String, seen : Set(String))
+      if seen.includes?(key)
+        raise "Duplicate key '#{key}' at line #{@current_token.line}, column #{@current_token.column}"
+      end
+      key_parts = key.split('.')
+      seen.each do |existing|
+        parts = existing.split('.')
+        if prefix?(key_parts, parts) || prefix?(parts, key_parts)
+          raise "Key conflict between '#{key}' and '#{existing}' at line #{@current_token.line}, column #{@current_token.column}"
+        end
+      end
+      seen << key
+    end
+
+    private def prefix?(left : Array(String), right : Array(String)) : Bool
+      return false if left.size >= right.size
+      left.each_with_index do |part, idx|
+        return false if right[idx] != part
+      end
+      true
     end
   end
 end

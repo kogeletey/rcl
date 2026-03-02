@@ -27,6 +27,7 @@ impl Parser {
         let mut properties = BTreeMap::new();
         let mut blocks = BTreeMap::new();
         let mut named_blocks = Vec::new();
+        let mut seen = Vec::<String>::new();
 
         while self.cur.typ != TokenType::End {
             if self.cur.typ == TokenType::Eof { return Err(self.err("missing end")); }
@@ -34,12 +35,14 @@ impl Parser {
             let next = self.peek_token()?;
             if next.typ == TokenType::Do || next.typ == TokenType::String {
                 let child = self.parse_block()?;
-                if let Some(arg) = &child.argument {
+                if child.argument.is_some() {
                     named_blocks.push(child.clone());
-                    blocks.insert(format!("{}:{}", child.name, arg), child);
                 } else { blocks.insert(child.name.clone(), child); }
             } else if next.typ == TokenType::Equal || next.typ == TokenType::Dot {
-                let key = self.parse_key()?; self.eat(TokenType::Equal)?;
+                let key = self.parse_key()?;
+                self.ensure_key_valid(&key, &seen)?;
+                seen.push(key.clone());
+                self.eat(TokenType::Equal)?;
                 properties.insert(key, self.parse_value()?);
             } else { return Err(self.err("invalid statement")); }
         }
@@ -69,7 +72,7 @@ impl Parser {
                 let v = self.cur.value.clone(); self.eat(TokenType::Identifier)?;
                 if v == "true" { Ok(AstNode::Boolean { kind: "boolean", value: true }) }
                 else if v == "false" { Ok(AstNode::Boolean { kind: "boolean", value: false }) }
-                else { Ok(AstNode::String { kind: "string", value: v }) }
+                else { Err(self.err("invalid bare value")) }
             }
             TokenType::LBracket => self.parse_array(),
             _ => Err(self.err("unexpected value")),
@@ -81,7 +84,11 @@ impl Parser {
         let mut elements = Vec::new();
         if self.cur.typ != TokenType::RBracket {
             elements.push(self.parse_value()?);
-            while self.cur.typ == TokenType::Comma { self.eat(TokenType::Comma)?; elements.push(self.parse_value()?); }
+            while self.cur.typ == TokenType::Comma {
+                self.eat(TokenType::Comma)?;
+                if self.cur.typ == TokenType::RBracket { return Err(self.err("trailing comma in array")); }
+                elements.push(self.parse_value()?);
+            }
         }
         self.eat(TokenType::RBracket)?;
         Ok(AstNode::Array { kind: "array", elements })
@@ -101,4 +108,19 @@ impl Parser {
     }
 
     fn err(&self, m: &str) -> ParseError { ParseError::new(m, self.cur.line, self.cur.col) }
+
+    fn ensure_key_valid(&self, key: &str, seen: &[String]) -> Result<(), ParseError> {
+        if seen.iter().any(|k| k == key) { return Err(self.err("duplicate key")); }
+        let parts: Vec<&str> = key.split('.').collect();
+        for existing in seen {
+            let ex: Vec<&str> = existing.split('.').collect();
+            if is_prefix(&parts, &ex) || is_prefix(&ex, &parts) { return Err(self.err("key conflict")); }
+        }
+        Ok(())
+    }
+}
+
+fn is_prefix(left: &[&str], right: &[&str]) -> bool {
+    if left.len() >= right.len() { return false; }
+    left.iter().enumerate().all(|(i, v)| right[i] == *v)
 }

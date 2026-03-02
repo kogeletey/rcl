@@ -21,6 +21,16 @@ fn parse_and_format_full_spec() {
     let doc = parse(&src).expect("parse");
     assert_eq!(doc.kind, "document");
     assert_eq!(doc.blocks[0].name, "server");
+    let obj = to_object(&doc);
+    let server = match obj.get("server").expect("server") {
+        rcl_parser::convert::Value::O(map) => map,
+        _ => panic!("server map expected"),
+    };
+    let tls = match server.get("tls").expect("tls") {
+        rcl_parser::convert::Value::O(map) => map,
+        _ => panic!("tls map expected"),
+    };
+    assert_eq!(tls.get("cert_path"), Some(&rcl_parser::convert::Value::S("/etc/cert.pem".into())));
 
     let out = format(&doc);
     let reparsed = parse(&out).expect("reparse");
@@ -57,4 +67,17 @@ fn named_block_and_conversion() {
     assert!(to_yaml(&doc).contains("region:"));
     assert!(to_toml(&doc).contains("[region.us]"));
     assert!(to_hcl(&doc).contains("region {"));
+}
+
+#[test]
+fn strict_edges() {
+    let bad = [
+        "x do\n  name = value\nend",
+        "x do\n  arr = [1,]\nend",
+        "x do\n  a = 1\n  a = 2\nend",
+        "x do\n  a = 1\n  a.b = 2\nend",
+    ];
+    for src in bad {
+        assert!(parse(src).is_err());
+    }
 }

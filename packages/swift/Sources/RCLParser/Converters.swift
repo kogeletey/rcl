@@ -12,7 +12,7 @@ public enum Converters {
 
     private static func blockToMap(_ block: BlockNode) -> [String: Any] {
         var result: [String: Any] = [:]
-        for (k, v) in block.properties { result[k] = nodeToAny(v) }
+        for (k, v) in block.properties { insertPath(&result, key: k, value: nodeToAny(v)) }
 
         let children = uniqChildren(block)
         for child in children where child.argument == nil {
@@ -108,5 +108,19 @@ public enum Converters {
         if let v = value as? Double { return "\(v)" }
         if let v = value as? [Any] { return "[\(v.map { scalar($0) }.joined(separator: ", "))]" }
         return "{}"
+    }
+
+    private static func insertPath(_ target: inout [String: Any], key: String, value: Any) {
+        let parts = key.split(separator: ".").map(String.init)
+        if parts.count == 1 {
+            if target[parts[0]] != nil { fatalError("duplicate key") }
+            target[parts[0]] = value
+            return
+        }
+        let head = parts[0]
+        if let current = target[head], !(current is [String: Any]) { fatalError("key conflict") }
+        var branch = (target[head] as? [String: Any]) ?? [:]
+        insertPath(&branch, key: parts.dropFirst().joined(separator: "."), value: value)
+        target[head] = branch
     }
 }

@@ -2,20 +2,17 @@
 
 > Under Construction, need help with this
 
-Go parser/formatter for full RCL spec.
-
-## Features
-
-- Full lexer/parser support: blocks, nested blocks, dotted keys, strings, numbers, booleans, arrays
-- `#` comments
-- Canonical formatter with parse->format->parse stability
-- Position-aware parse errors
+Go parser/formatter/converter for full RCL spec.
 
 ## Usage
 
 ```go
 doc, err := rcl.Parse(source)
-out, err := rcl.Format(doc)
+obj := rcl.ToObject(doc)
+yaml, _ := rcl.ToYAML(doc)
+toml, _ := rcl.ToTOML(doc)
+hcl, _ := rcl.ToHCL(doc)
+out, _ := rcl.Format(doc)
 ```
 
 ## Test
@@ -23,3 +20,5 @@ out, err := rcl.Format(doc)
 ```bash
 go test ./...
 ```
+
+Constraints: `#` comments only, strings in double quotes only, dotted keys are nested, duplicate/conflicting keys fail.

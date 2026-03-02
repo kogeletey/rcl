@@ -1,5 +1,3 @@
-# RCL Document
-# Represents a parsed RCL configuration document
 require "./ast"
 require "json"
 require "set"
@@ -12,25 +10,21 @@ module RCL
     def initialize(@blocks = [] of BlockNode)
       @root = {} of String => ASTNode
 
-      # Flatten single root block if exists
       if @blocks.size == 1
         block = @blocks.first
         block.properties.each { |k, v| @root[k] = v }
         block.blocks.each { |k, v| @root[k] = v }
       else
-        # Multiple blocks - index them by name
         @blocks.each do |block|
           @root[block.name] = block
         end
       end
     end
 
-    # Get value by key (from root)
     def []?(key : String) : ASTNode?
       @root[key]?
     end
 
-    # Get value by path (e.g., "akash.deployment_name")
     def get(path : String) : ASTNode?
       parts = path.split('.')
       current : ASTNode? = @root[parts[0]]?
@@ -45,13 +39,11 @@ module RCL
       current
     end
 
-    # Get string value
     def get_string(path : String, default : String? = nil) : String?
       node = get(path)
       node.is_a?(StringNode) ? node.as(StringNode).value : default
     end
 
-    # Get integer value
     def get_int(path : String, default : Int32? = nil) : Int32?
       node = get(path)
       if node.is_a?(NumberNode)
@@ -62,42 +54,35 @@ module RCL
       end
     end
 
-    # Get float value
     def get_float(path : String, default : Float64? = nil) : Float64?
       node = get(path)
       node.is_a?(NumberNode) ? node.as(NumberNode).value.to_f : default
     end
 
-    # Get boolean value
     def get_bool(path : String, default : Bool? = nil) : Bool?
       node = get(path)
       node.is_a?(BooleanNode) ? node.as(BooleanNode).value : default
     end
 
-    # Get array value
     def get_array(path : String) : ArrayNode?
       node = get(path)
       node.is_a?(ArrayNode) ? node.as(ArrayNode) : nil
     end
 
-    # Get block by name
     def block(name : String) : BlockNode?
       @root[name]?.as(BlockNode?)
     end
 
-    # Check if key exists
     def has_key?(path : String) : Bool
       get(path).nil? == false
     end
 
-    # Convert to Hash
     def to_h : Hash(String, RCL::Value)
       result = {} of String => RCL::Value
       @blocks.each do |block|
         result[block.name] = block_to_h(block)
       end
 
-      # If single root block, return its contents
       if @blocks.size == 1
         return block_to_h(@blocks.first)
       end
@@ -105,7 +90,6 @@ module RCL
       result
     end
 
-    # Convert to a stable AST hash contract
     def to_ast_h : Hash(String, RCL::Value)
       {
         "kind"   => "document",
@@ -120,9 +104,8 @@ module RCL
     private def block_to_h(block : BlockNode) : Hash(String, RCL::Value)
       result = {} of String => RCL::Value
 
-      # Add properties
       block.properties.each do |key, node|
-        result[key] = node_to_h(node)
+        insert_key_path!(result, key, node_to_h(node))
       end
 
       children = unique_child_blocks(block)
@@ -168,16 +151,6 @@ module RCL
       end
     end
 
-    # Get all block names
-    def block_names : Array(String)
-      @blocks.map(&.name)
-    end
-
-    # Get all root keys
-    def keys : Array(String)
-      @root.keys
-    end
-
     private def unique_child_blocks(block : BlockNode) : Array(BlockNode)
       seen = Set(UInt64).new
       out = [] of BlockNode
@@ -194,6 +167,23 @@ module RCL
         out << child
       end
       out
+    end
+
+    private def insert_key_path!(target : Hash(String, RCL::Value), key : String, value : RCL::Value)
+      parts = key.split('.')
+      if parts.size == 1
+        raise "Duplicate key '#{key}'" if target.has_key?(key)
+        target[key] = value
+        return
+      end
+      head = parts[0]
+      existing = target[head]?
+      if existing && !existing.is_a?(Hash(String, RCL::Value))
+        raise "Key conflict at '#{head}'"
+      end
+      branch = existing.as?(Hash(String, RCL::Value)) || ({} of String => RCL::Value)
+      insert_key_path!(branch, parts[1..].join("."), value)
+      target[head] = branch
     end
   end
 end

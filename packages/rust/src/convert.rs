@@ -18,7 +18,7 @@ pub fn to_hcl(doc: &DocumentNode) -> String { emit_hcl(&Value::O(to_object(doc))
 
 fn block_to_map(block: &BlockNode) -> BTreeMap<String, Value> {
     let mut out = BTreeMap::new();
-    for (k, v) in &block.properties { out.insert(k.clone(), node_to_value(v)); }
+    for (k, v) in &block.properties { insert_path(&mut out, k, node_to_value(v)); }
 
     let children = uniq_children(block);
     for c in children.iter().filter(|x| x.argument.is_none()) {
@@ -104,4 +104,22 @@ fn scalar(v: &Value) -> String {
         Value::A(a) => format!("[{}]", a.iter().map(scalar).collect::<Vec<_>>().join(", ")),
         Value::O(_) => "{}".into(),
     }
+}
+
+fn insert_path(target: &mut BTreeMap<String, Value>, key: &str, value: Value) {
+    let parts: Vec<&str> = key.split('.').collect();
+    if parts.len() == 1 {
+        if target.contains_key(key) { panic!("duplicate key"); }
+        target.insert(key.to_string(), value);
+        return;
+    }
+    let head = parts[0].to_string();
+    let branch = match target.get(&head) {
+        Some(Value::O(v)) => v.clone(),
+        Some(_) => panic!("key conflict"),
+        None => BTreeMap::new(),
+    };
+    let mut next = branch;
+    insert_path(&mut next, &parts[1..].join("."), value);
+    target.insert(head, Value::O(next));
 }

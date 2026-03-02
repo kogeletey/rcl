@@ -12,7 +12,7 @@ object Converters {
 
   private fun blockToMap(block: BlockNode): MutableMap<String, Any?> {
     val result = linkedMapOf<String, Any?>()
-    block.properties.forEach { (k, v) -> result[k] = nodeToAny(v) }
+    block.properties.forEach { (k, v) -> insertPath(result, k, nodeToAny(v)) }
 
     val children = uniqueChildren(block)
     children.filter { it.argument == null }.forEach { child ->
@@ -96,5 +96,22 @@ object Converters {
     is Number -> v.toString()
     is List<*> -> "[${v.joinToString(", ") { scalar(it) }}]"
     else -> "{}"
+  }
+
+  private fun insertPath(target: MutableMap<String, Any?>, key: String, value: Any?) {
+    val parts = key.split(".")
+    if (parts.size == 1) {
+      if (target.containsKey(key)) throw IllegalArgumentException("duplicate key")
+      target[key] = value
+      return
+    }
+    val head = parts.first()
+    val existing = target[head]
+    if (existing != null && existing !is MutableMap<*, *> && existing !is Map<*, *>) {
+      throw IllegalArgumentException("key conflict")
+    }
+    val branch = (existing as? MutableMap<String, Any?>) ?: (existing as? Map<String, Any?>)?.toMutableMap() ?: linkedMapOf()
+    insertPath(branch, parts.drop(1).joinToString("."), value)
+    target[head] = branch
   }
 }

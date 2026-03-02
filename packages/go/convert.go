@@ -15,7 +15,7 @@ func ToObject(doc DocumentNode) map[string]any {
 
 func blockToMap(block BlockNode) map[string]any {
 	result := map[string]any{}
-	for k, v := range block.Properties { result[k] = nodeToAny(v) }
+	for k, v := range block.Properties { insertPath(result, k, nodeToAny(v)) }
 
 	children := uniqChildren(block)
 	for _, child := range children {
@@ -164,3 +164,21 @@ func scalar(v any) string {
 }
 
 func reflectInt64(v any) int64 { switch n := v.(type) { case int: return int64(n); case int32: return int64(n); case int64: return n; default: return 0 } }
+
+func insertPath(target map[string]any, key string, value any) {
+	parts := strings.Split(key, ".")
+	if len(parts) == 1 {
+		if _, ok := target[key]; ok { panic("duplicate key") }
+		target[key] = value
+		return
+	}
+	head := parts[0]
+	current, ok := target[head]
+	if ok {
+		if _, ok = current.(map[string]any); !ok { panic("key conflict") }
+	}
+	branch, _ := current.(map[string]any)
+	if branch == nil { branch = map[string]any{} }
+	insertPath(branch, strings.Join(parts[1:], "."), value)
+	target[head] = branch
+}

@@ -22,6 +22,10 @@ final class RCLParserTests: XCTestCase {
         let ast = try RCL.parse(src)
         XCTAssertEqual(ast.kind, "document")
         XCTAssertEqual(ast.blocks.first?.name, "server")
+        let obj = Converters.toObject(ast)
+        let server = obj["server"] as? [String: Any]
+        let tls = server?["tls"] as? [String: Any]
+        XCTAssertEqual(tls?["cert_path"] as? String, "/etc/cert.pem")
 
         let out = Formatter.format(ast)
         let reparsed = try RCL.parse(out)
@@ -53,5 +57,17 @@ final class RCLParserTests: XCTestCase {
         XCTAssertTrue(Converters.toYAML(ast).contains("region:"))
         XCTAssertTrue(Converters.toTOML(ast).contains("[region.us]"))
         XCTAssertTrue(Converters.toHCL(ast).contains("region {"))
+    }
+
+    func testStrictEdges() {
+        let bad = [
+            "x do\n  name = value\nend",
+            "x do\n  arr = [1,]\nend",
+            "x do\n  a = 1\n  a = 2\nend",
+            "x do\n  a = 1\n  a.b = 2\nend",
+        ]
+        for src in bad {
+            XCTAssertThrowsError(try RCL.parse(src))
+        }
     }
 }

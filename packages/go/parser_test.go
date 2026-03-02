@@ -8,7 +8,11 @@ func TestFullSpecParseAndFormat(t *testing.T) {
 	if err != nil { t.Fatalf("parse error: %v", err) }
 	if doc.Kind() != "document" || len(doc.Blocks) != 1 { t.Fatalf("invalid document") }
 	if doc.Blocks[0].Name != "server" { t.Fatalf("invalid block name") }
-	if _, ok := doc.Blocks[0].Properties["tls.cert_path"]; !ok { t.Fatalf("dotted key missing") }
+	obj := ToObject(doc)
+	server, ok := obj["server"].(map[string]any)
+	if !ok { t.Fatalf("server missing") }
+	tls, ok := server["tls"].(map[string]any)
+	if !ok || tls["cert_path"] != "/etc/cert.pem" { t.Fatalf("nested dotted key mismatch") }
 	out, err := Format(doc)
 	if err != nil { t.Fatalf("format error: %v", err) }
 	reparsed, err := Parse(out)
@@ -35,4 +39,16 @@ func TestErrorPosition(t *testing.T) {
 	if err == nil { t.Fatalf("expected error") }
 	pe, ok := err.(*ParseError)
 	if !ok || pe.Line <= 0 || pe.Column <= 0 { t.Fatalf("expected parse error with position") }
+}
+
+func TestStrictEdges(t *testing.T) {
+	cases := []string{
+		"x do\n  name = value\nend",
+		"x do\n  arr = [1,]\nend",
+		"x do\n  a = 1\n  a = 2\nend",
+		"x do\n  a = 1\n  a.b = 2\nend",
+	}
+	for _, src := range cases {
+		if _, err := Parse(src); err == nil { t.Fatalf("expected error for: %s", src) }
+	}
 }

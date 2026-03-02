@@ -31,6 +31,7 @@ export class Parser {
     const properties: Record<string, AstNode> = {};
     const blocks: Record<string, BlockNode> = {};
     const namedBlocks: BlockNode[] = [];
+    const seenKeys = new Set<string>();
 
     while (this.current.type !== TokenType.End) {
       if (this.current.type === TokenType.EOF) throw this.err("missing 'end' for block");
@@ -41,10 +42,10 @@ export class Parser {
         const child = this.parseBlock();
         if (child.argument) {
           namedBlocks.push(child);
-          blocks[`${child.name}:${child.argument}`] = child;
         } else blocks[child.name] = child;
       } else if (next.type === TokenType.Equal || next.type === TokenType.Dot) {
         const key = this.parsePropertyKey();
+        this.ensurePropertyKeyValid(key, seenKeys);
         this.eat(TokenType.Equal);
         properties[key] = this.parseValue();
       } else throw this.err(`invalid statement after '${this.current.value}'`);
@@ -80,7 +81,7 @@ export class Parser {
       const v = this.current.value; this.eat(TokenType.Identifier);
       if (v === "true") return { kind: "boolean", value: true };
       if (v === "false") return { kind: "boolean", value: false };
-      return { kind: "string", value: v };
+      throw this.err(`invalid bare value '${v}'`);
     }
     if (this.current.type === TokenType.LBracket) return this.parseArray();
     throw this.err(`unexpected token ${this.current.type}`);
@@ -93,6 +94,7 @@ export class Parser {
       elements.push(this.parseValue());
       while (this.current.type === TokenType.Comma) {
         this.eat(TokenType.Comma);
+        if (this.current.type === TokenType.RBracket) throw this.err("trailing comma in array");
         elements.push(this.parseValue());
       }
     }
@@ -114,5 +116,21 @@ export class Parser {
 
   private err(message: string): ParserException {
     return new ParserException(message, this.current.line, this.current.column);
+  }
+
+  private ensurePropertyKeyValid(key: string, seen: Set<string>): void {
+    if (seen.has(key)) throw this.err(`duplicate key '${key}'`);
+    const parts = key.split(".");
+    for (const existing of seen) {
+      const ex = existing.split(".");
+      if (this.isPrefix(parts, ex) || this.isPrefix(ex, parts)) throw this.err(`key conflict '${key}' vs '${existing}'`);
+    }
+    seen.add(key);
+  }
+
+  private isPrefix(left: string[], right: string[]): boolean {
+    if (left.length >= right.length) return false;
+    for (let i = 0; i < left.length; i += 1) if (left[i] !== right[i]) return false;
+    return true;
   }
 }

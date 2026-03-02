@@ -1,6 +1,3 @@
-# RCL Lexer
-# Tokenizes RCL configuration source code
-
 require "./token"
 
 module RCL
@@ -13,7 +10,6 @@ module RCL
     def initialize(@input)
     end
 
-    # Get next token from input
     def next_token : Token
       skip_whitespace_and_comments
       return Token.new(TokenType::EOF, "", @line, @column) if @pos >= @input.size
@@ -26,6 +22,13 @@ module RCL
       when '[' then advance; Token.new(TokenType::LBracket, "[", @line, @column)
       when ']' then advance; Token.new(TokenType::RBracket, "]", @line, @column)
       when '"' then read_string
+      when '-'
+        if peek.try(&.ascii_number?)
+          read_number
+        else
+          advance
+          Token.new(TokenType::Identifier, char.to_s, @line, @column)
+        end
       when '0'..'9' then read_number
       when 't', 'f' then read_boolean
       when 'a'..'z', 'A'..'Z', '_' then read_identifier_or_keyword
@@ -46,12 +49,10 @@ module RCL
       @input[@pos + 1]?
     end
 
-    # Peek at character after current position (public for parser)
     def peek_char : Char?
       @input[@pos + 1]?
     end
 
-    # Skip whitespace and comments
     private def skip_whitespace_and_comments
       while @pos < @input.size
         char = current_char
@@ -64,7 +65,6 @@ module RCL
           end
           advance
         elsif char == '#'
-          # Skip Ruby-style line comments
           while @pos < @input.size && current_char != '\n'
             advance
           end
@@ -74,24 +74,27 @@ module RCL
       end
     end
 
-    # Read string value
     private def read_string : Token
       start_line, start_col = @line, @column
-      advance # skip opening quote
+      advance
       value = ""
 
       while @pos < @input.size && current_char != '"'
-        if current_char == '\\' && peek == '"'
-          value += '"'
+        if current_char == '\\'
           advance
-          advance
-        elsif current_char == '\\' && peek == 'n'
-          value += '\n'
-          advance
-          advance
-        elsif current_char == '\\' && peek == 't'
-          value += '\t'
-          advance
+          raise "Unterminated escape at line #{start_line}, column #{start_col}" if @pos >= @input.size
+          case current_char
+          when '"'
+            value += '"'
+          when 'n'
+            value += '\n'
+          when 't'
+            value += '\t'
+          when '\\'
+            value += '\\'
+          else
+            raise "Invalid escape sequence at line #{@line}, column #{@column}"
+          end
           advance
         else
           value += current_char.to_s
@@ -99,28 +102,25 @@ module RCL
         end
       end
 
-      advance # skip closing quote
+      raise "Unterminated string at line #{start_line}, column #{start_col}" if @pos >= @input.size
+      advance
       Token.new(TokenType::String, value, start_line, start_col)
     end
 
-    # Read number value (integer or float)
     private def read_number : Token
       start_line, start_col = @line, @column
       value = ""
 
-      # Handle negative numbers
       if current_char == '-'
         value += '-'
         advance
       end
 
-      # Read integer part
       while @pos < @input.size && current_char.ascii_number?
         value += current_char.to_s
         advance
       end
 
-      # Read decimal part if present
       if @pos < @input.size && current_char == '.' && peek.try(&.ascii_number?)
         value += '.'
         advance
@@ -133,7 +133,6 @@ module RCL
       Token.new(TokenType::Number, value, start_line, start_col)
     end
 
-    # Read boolean value (true/false)
     private def read_boolean : Token
       start_line, start_col = @line, @column
       value = ""
@@ -146,7 +145,6 @@ module RCL
       Token.new(TokenType::Identifier, value, start_line, start_col)
     end
 
-    # Read identifier or keyword
     private def read_identifier_or_keyword : Token
       start_line, start_col = @line, @column
       value = ""
@@ -156,7 +154,6 @@ module RCL
         advance
       end
 
-      # Check for keywords
       case value
       when "do" then Token.new(TokenType::Do, value, start_line, start_col)
       when "end" then Token.new(TokenType::End, value, start_line, start_col)

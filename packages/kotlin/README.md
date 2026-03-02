@@ -2,23 +2,17 @@
 
 > Under Construction, need help with this
 
-Kotlin/JVM parser/formatter for full RCL spec.
-
-## Features
-
-- Full lexer/parser for RCL grammar
-- Position-aware parse errors
-- Canonical formatter and roundtrip tests
+Kotlin/JVM parser/formatter/converter for full RCL spec.
 
 ## Usage
 
 ```kotlin
 val ast = Parser.parse(source)
+val obj = Converters.toObject(ast)
+val yaml = Converters.toYaml(ast)
+val toml = Converters.toToml(ast)
+val hcl = Converters.toHcl(ast)
 val out = Formatter.format(ast)
 ```
 
-## Test
-
-```bash
-mvn test
-```
+Constraints: `#` comments only, strings in double quotes only, dotted keys are nested, duplicate/conflicting keys fail.

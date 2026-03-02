@@ -1,6 +1,9 @@
 package rcl
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 type parser struct {
 	lex *lexer
@@ -35,6 +38,7 @@ func (p *parser) parseBlock() (BlockNode, error) {
 	props := map[string]Node{}
 	blocks := map[string]BlockNode{}
 	named := []BlockNode{}
+	seen := map[string]bool{}
 
 	for p.cur.typ != tokEnd {
 		if p.cur.typ == tokEOF { return BlockNode{}, p.err("missing end") }
@@ -46,11 +50,11 @@ func (p *parser) parseBlock() (BlockNode, error) {
 			if err != nil { return BlockNode{}, err }
 			if child.Argument != nil {
 				named = append(named, child)
-				blocks[child.Name+":"+*child.Argument] = child
 			} else { blocks[child.Name] = child }
 		} else if next.typ == tokEqual || next.typ == tokDot {
 			k, err := p.parseKey()
 			if err != nil { return BlockNode{}, err }
+			if err = p.ensureKeyValid(k, seen); err != nil { return BlockNode{}, err }
 			if err = p.eat(tokEqual); err != nil { return BlockNode{}, err }
 			v, err := p.parseValue()
 			if err != nil { return BlockNode{}, err }
@@ -87,7 +91,7 @@ func (p *parser) parseValue() (Node, error) {
 		v := p.cur.value; _ = p.eat(tokIdentifier)
 		if v == "true" { return BooleanNode{NodeKind: "boolean", Value: true}, nil }
 		if v == "false" { return BooleanNode{NodeKind: "boolean", Value: false}, nil }
-		return StringNode{NodeKind: "string", Value: v}, nil
+		return nil, p.err("invalid bare value")
 	case tokLBracket:
 		return p.parseArray()
 	default:
@@ -103,6 +107,7 @@ func (p *parser) parseArray() (Node, error) {
 		elems = append(elems, v)
 		for p.cur.typ == tokComma {
 			_ = p.eat(tokComma)
+			if p.cur.typ == tokRBracket { return nil, p.err("trailing comma in array") }
 			v, err = p.parseValue(); if err != nil { return nil, err }
 			elems = append(elems, v)
 		}
@@ -125,3 +130,20 @@ func (p *parser) peek() (token, error) {
 	return t, err
 }
 func (p *parser) err(msg string) error { return &ParseError{Message: msg, Line: p.cur.line, Column: p.cur.col} }
+
+func (p *parser) ensureKeyValid(key string, seen map[string]bool) error {
+	if seen[key] { return p.err("duplicate key") }
+	parts := strings.Split(key, ".")
+	for existing := range seen {
+		ex := strings.Split(existing, ".")
+		if isPrefix(parts, ex) || isPrefix(ex, parts) { return p.err("key conflict") }
+	}
+	seen[key] = true
+	return nil
+}
+
+func isPrefix(left, right []string) bool {
+	if len(left) >= len(right) { return false }
+	for i := range left { if left[i] != right[i] { return false } }
+	return true
+}

@@ -28,7 +28,7 @@ function uniqChildren(block: BlockNode): BlockNode[] {
 
 function blockToObject(block: BlockNode): { [k: string]: V } {
   const result: { [k: string]: V } = {};
-  for (const [k, v] of Object.entries(block.properties)) result[k] = nodeToValue(v);
+  for (const [k, v] of Object.entries(block.properties)) insertPath(result, k, nodeToValue(v));
 
   const children = uniqChildren(block);
   for (const child of children.filter((c) => c.argument === undefined)) {
@@ -48,6 +48,21 @@ function blockToObject(block: BlockNode): { [k: string]: V } {
     result[base] = parent;
   }
   return result;
+}
+
+function insertPath(target: { [k: string]: V }, key: string, value: V): void {
+  const parts = key.split(".");
+  if (parts.length === 1) {
+    if (Object.prototype.hasOwnProperty.call(target, key)) throw new Error(`duplicate key '${key}'`);
+    target[key] = value;
+    return;
+  }
+  const head = parts[0]!;
+  const current = target[head];
+  if (current !== undefined && (typeof current !== "object" || Array.isArray(current))) throw new Error(`key conflict at '${head}'`);
+  const branch = (current as { [k: string]: V } | undefined) ?? {};
+  insertPath(branch, parts.slice(1).join("."), value);
+  target[head] = branch;
 }
 
 export function toObject(document: DocumentNode): { [k: string]: V } {

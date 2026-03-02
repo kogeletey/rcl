@@ -126,17 +126,6 @@ module RCL
       @properties[key] = value
     end
 
-    # Add a named block (block with argument)
-    def add_named_block(block : BlockNode)
-      @named_blocks << block
-      # Also store in blocks hash with key "name:argument" for backward compatibility
-      if block.argument
-        @blocks["#{block.name}:#{block.argument}"] = block
-      else
-        @blocks[block.name] = block
-      end
-    end
-
     # Check if has key
     def has_key?(key : String) : Bool
       @properties.has_key?(key) || @blocks.has_key?(key)
