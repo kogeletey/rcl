@@ -16,5 +16,5 @@ jobs:
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-latest
-      - run: ldc2 -Isource source/rcl.d test/test.d -of=test_bin
+      - run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
       - run: ./test_bin

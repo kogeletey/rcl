@@ -4,6 +4,12 @@ import std.array : appender;
 import std.conv : to;
 import rcl.ast;
 
+string indentPad(int indent) {
+  string pad;
+  foreach (_; 0 .. indent) pad ~= "  ";
+  return pad;
+}
+
 string esc(string s) {
   auto o = appender!string();
   foreach (ch; s) {
@@ -31,7 +37,7 @@ string fmtValue(AstNode n) {
 }
 
 string fmtBlock(BlockNode b, int indent) {
-  auto pad = "  ".repeat(indent);
+  auto pad = indentPad(indent);
   auto head = b.hasArg ? pad ~ b.name ~ " " ~ q(b.arg) ~ " do" : pad ~ b.name ~ " do";
   string[] lines = [head];
   foreach (k; b.propOrder) lines ~= pad ~ "  " ~ k ~ " = " ~ fmtValue(b.props[k]);
@@ -42,10 +48,9 @@ string fmtBlock(BlockNode b, int indent) {
 }
 
 string formatDocument(Document d) {
-  string[] out;
-  foreach (b; d.blocks) out ~= fmtBlock(b, 0);
-  return out.join("\n\n");
+  string[] lines;
+  foreach (b; d.blocks) lines ~= fmtBlock(b, 0);
+  return lines.join("\n\n");
 }
 
 import std.array : join;
-import std.algorithm.iteration : repeat;

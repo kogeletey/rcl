@@ -35,45 +35,45 @@ struct Lexer {
 
   Token readString(int l, int c) {
     advance();
-    string out;
+    string buf;
     while (pos < input.length && peek() != '"') {
       auto ch = peek();
       if (ch == '\\') {
         advance();
         if (pos >= input.length) fail("Unterminated escape", l, c);
         auto esc = peek();
-        if (esc == '"') out ~= '"';
-        else if (esc == 'n') out ~= '\n';
-        else if (esc == 't') out ~= '\t';
-        else if (esc == '\\') out ~= '\\';
+        if (esc == '"') buf ~= '"';
+        else if (esc == 'n') buf ~= '\n';
+        else if (esc == 't') buf ~= '\t';
+        else if (esc == '\\') buf ~= '\\';
         else fail("Invalid escape sequence", line, col);
         advance();
-      } else { out ~= ch; advance(); }
+      } else { buf ~= ch; advance(); }
     }
     if (pos >= input.length) fail("Unterminated string", l, c);
     advance();
-    return Token(TokenType.str, out, l, c);
+    return Token(TokenType.str, buf, l, c);
   }
 
   Token readNumber(int l, int c) {
-    string out;
-    if (peek() == '-') { out ~= '-'; advance(); }
-    while (peek() >= '0' && peek() <= '9') { out ~= peek(); advance(); }
+    string buf;
+    if (peek() == '-') { buf ~= '-'; advance(); }
+    while (peek() >= '0' && peek() <= '9') { buf ~= peek(); advance(); }
     if (peek() == '.' && peek(1) >= '0' && peek(1) <= '9') {
-      out ~= '.'; advance();
-      while (peek() >= '0' && peek() <= '9') { out ~= peek(); advance(); }
+      buf ~= '.'; advance();
+      while (peek() >= '0' && peek() <= '9') { buf ~= peek(); advance(); }
     }
-    return Token(TokenType.num, out, l, c);
+    return Token(TokenType.num, buf, l, c);
   }
 
   Token readIdent(int l, int c) {
-    string out;
+    string buf;
     while ((peek() >= 'a' && peek() <= 'z') || (peek() >= 'A' && peek() <= 'Z') || (peek() >= '0' && peek() <= '9') || peek() == '_') {
-      out ~= peek(); advance();
+      buf ~= peek(); advance();
     }
-    if (out == "do") return Token(TokenType.kwDo, out, l, c);
-    if (out == "end") return Token(TokenType.kwEnd, out, l, c);
-    return Token(TokenType.ident, out, l, c);
+    if (buf == "do") return Token(TokenType.kwDo, buf, l, c);
+    if (buf == "end") return Token(TokenType.kwEnd, buf, l, c);
+    return Token(TokenType.ident, buf, l, c);
   }
 
   Token nextToken() {

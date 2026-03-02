@@ -1,6 +1,6 @@
 module rcl.parser;
 
-import std.string : split;
+import std.string : split, indexOf;
 import std.conv : to;
 import rcl.ast;
 import rcl.lexer;
@@ -58,7 +58,7 @@ struct Parser {
     }
     if (cur.typ == TokenType.num) {
       auto v = cur.value; eat(TokenType.num);
-      return AstNode(NodeKind.num, "", v.to!double, false, v.canFind("."), null);
+      return AstNode(NodeKind.num, "", v.to!double, false, indexOf(v, ".") >= 0, null);
     }
     if (cur.typ == TokenType.ident) {
       auto t = cur;
@@ -119,4 +119,3 @@ struct Parser {
 }
 
 Document parseDocument(string input) { return Parser(input).parseDoc(); }
-import std.algorithm.searching : canFind;

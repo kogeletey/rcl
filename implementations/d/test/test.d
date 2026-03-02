@@ -1,7 +1,7 @@
 import rcl;
 import std.exception : enforce;
 import std.stdio : writeln;
-import std.string : canFind;
+import std.string : indexOf;
 
 void main() {
   auto src = "config do\n"
@@ -20,10 +20,10 @@ void main() {
   auto obj = toObject(ast);
   enforce(obj.object["config"].object["tls"].object["cert_path"].str == "/etc/cert.pem", "dot");
   enforce(obj.object["config"].object["regions"].object["us"].object["name"].str == "My Name", "named");
-  enforce(toTOML(ast).canFind("[config.regions.us]"), "toml");
-  enforce(toYAML(ast).canFind("regions:"), "yaml");
-  enforce(toHCL(ast).canFind("regions {"), "hcl");
-  enforce(formatRcl(ast).canFind("region \"us\" do"), "format");
+  enforce(indexOf(toTOML(ast), "[config.regions.us]") >= 0, "toml");
+  enforce(indexOf(toYAML(ast), "regions:") >= 0, "yaml");
+  enforce(indexOf(toHCL(ast), "regions {") >= 0, "hcl");
+  enforce(indexOf(formatRcl(ast), "region \"us\" do") >= 0, "format");
 
   string[] bad = [
     "x do\n  name = value\nend\n",

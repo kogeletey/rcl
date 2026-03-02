@@ -9,13 +9,13 @@ import std.json;
 Document parse(string input) { return parseDocument(input); }
 
 string formatRcl(T)(T input) {
-  auto doc = is(T == string) ? parseDocument(input) : input;
-  return formatDocument(doc);
+  static if (is(T == string)) return formatDocument(parseDocument(input));
+  else return formatDocument(input);
 }
 
 JSONValue toObject(T)(T input) {
-  auto doc = is(T == string) ? parseDocument(input) : input;
-  return toObjectDocument(doc);
+  static if (is(T == string)) return toObjectDocument(parseDocument(input));
+  else return toObjectDocument(input);
 }
 
 string toYAML(T)(T input) { return emitYAML(toObject(input)); }
