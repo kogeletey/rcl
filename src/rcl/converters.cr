@@ -1,0 +1,134 @@
+require "./document"
+
+module RCL
+  module Converters
+    def self.to_yaml(value : RCL::Value) : String
+      emit_yaml(value, 0)
+    end
+
+    def self.to_toml(value : RCL::Value) : String
+      root = value.as(Hash(String, RCL::Value))
+      out = [] of String
+      emit_toml_table(root, nil, out)
+      out.join("\n")
+    end
+
+    def self.to_hcl(value : RCL::Value) : String
+      emit_hcl(value, 0)
+    end
+
+    private def self.emit_yaml(value : RCL::Value, indent : Int32) : String
+      case value
+      when Hash(String, RCL::Value)
+        lines = [] of String
+        value.keys.sort.each do |key|
+          item = value[key]
+          if item.is_a?(Hash(String, RCL::Value)) || item.is_a?(Array(RCL::Value))
+            lines << "#{"  " * indent}#{key}:"
+            lines << emit_yaml(item, indent + 1)
+          else
+            lines << "#{"  " * indent}#{key}: #{yaml_scalar(item)}"
+          end
+        end
+        lines.join("\n")
+      when Array(RCL::Value)
+        lines = [] of String
+        value.each do |item|
+          if item.is_a?(Hash(String, RCL::Value)) || item.is_a?(Array(RCL::Value))
+            lines << "#{"  " * indent}-"
+            lines << emit_yaml(item, indent + 1)
+          else
+            lines << "#{"  " * indent}- #{yaml_scalar(item)}"
+          end
+        end
+        lines.join("\n")
+      else
+        yaml_scalar(value)
+      end
+    end
+
+    private def self.emit_toml_table(hash : Hash(String, RCL::Value), prefix : String?, out : Array(String))
+      scalar_keys = hash.keys.select { |k| !hash[k].is_a?(Hash(String, RCL::Value)) }.sort
+      scalar_keys.each do |key|
+        out << "#{key} = #{toml_scalar(hash[key])}"
+      end
+
+      table_keys = hash.keys.select { |k| hash[k].is_a?(Hash(String, RCL::Value)) }.sort
+      table_keys.each do |key|
+        section = prefix ? "#{prefix}.#{key}" : key
+        out << "" unless out.empty?
+        out << "[#{section}]"
+        emit_toml_table(hash[key].as(Hash(String, RCL::Value)), section, out)
+      end
+    end
+
+    private def self.emit_hcl(value : RCL::Value, indent : Int32) : String
+      case value
+      when Hash(String, RCL::Value)
+        lines = [] of String
+        value.keys.sort.each do |key|
+          item = value[key]
+          if item.is_a?(Hash(String, RCL::Value))
+            lines << "#{"  " * indent}#{key} {"
+            lines << emit_hcl(item, indent + 1)
+            lines << "#{"  " * indent}}"
+          else
+            lines << "#{"  " * indent}#{key} = #{hcl_scalar(item)}"
+          end
+        end
+        lines.join("\n")
+      else
+        hcl_scalar(value)
+      end
+    end
+
+    private def self.yaml_scalar(value : RCL::Value) : String
+      case value
+      when String
+        %("#{escape_string(value)}")
+      when Int32, Int64, Float64
+        value.to_s
+      when Bool
+        value ? "true" : "false"
+      when Array(RCL::Value)
+        "[#{value.map { |v| yaml_scalar(v) }.join(", ")}]"
+      when Hash(String, RCL::Value)
+        "{}"
+      end
+    end
+
+    private def self.toml_scalar(value : RCL::Value) : String
+      case value
+      when String
+        %("#{escape_string(value)}")
+      when Int32, Int64, Float64
+        value.to_s
+      when Bool
+        value ? "true" : "false"
+      when Array(RCL::Value)
+        "[#{value.map { |v| toml_scalar(v) }.join(", ")}]"
+      when Hash(String, RCL::Value)
+        "{}"
+      end
+    end
+
+    private def self.hcl_scalar(value : RCL::Value) : String
+      case value
+      when String
+        %("#{escape_string(value)}")
+      when Int32, Int64, Float64
+        value.to_s
+      when Bool
+        value ? "true" : "false"
+      when Array(RCL::Value)
+        "[#{value.map { |v| hcl_scalar(v) }.join(", ")}]"
+      when Hash(String, RCL::Value)
+        "{}"
+      end
+    end
+
+    private def self.escape_string(value : String) : String
+      value.gsub("\\", "\\\\").gsub("\"", "\\\"").gsub("\n", "\\n").gsub("\t", "\\t")
+    end
+  end
+end

@@ -29,6 +29,7 @@ require "./rcl/lexer"
 require "./rcl/parser"
 require "./rcl/document"
 require "./rcl/formatter"
+require "./rcl/converters"
 require "./rcl/blocks"
 
 module RCL
@@ -61,5 +62,29 @@ module RCL
   # Format parsed document into canonical RCL source text
   def self.format(document : Document) : String
     RCL::Formatter.format(document)
+  end
+
+  def self.to_yaml(document : Document) : String
+    RCL::Converters.to_yaml(document.to_h)
+  end
+
+  def self.to_toml(document : Document) : String
+    RCL::Converters.to_toml(document.to_h)
+  end
+
+  def self.to_hcl(document : Document) : String
+    RCL::Converters.to_hcl(document.to_h)
+  end
+
+  def self.parse_string_to_yaml(content : String) : String
+    to_yaml(parse_string(content))
+  end
+
+  def self.parse_string_to_toml(content : String) : String
+    to_toml(parse_string(content))
+  end
+
+  def self.parse_string_to_hcl(content : String) : String
+    to_hcl(parse_string(content))
   end
 end

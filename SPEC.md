@@ -1,223 +1,193 @@
 # RCL Language Specification
 
-## Overview
+## 1. Overview
 
-RCL (Ruby-like Configuration Language) is a Ruby-inspired configuration language with a simple, readable syntax. It uses `do...end` blocks for nesting and `#` for comments.
+RCL (Ruby-like Configuration Language) is a configuration DSL with explicit `do ... end` blocks,
+assignment-based properties, and typed scalar/array values.
 
-## Lexical Structure
+This specification defines:
 
-### Comments
+- lexical rules
+- grammar
+- AST and hash projection rules
+- conversion rules to YAML/TOML/HCL
+- error expectations
 
-Comments start with `#` and extend to the end of the line:
+## 2. Lexical Structure
 
-```rcl
-# This is a comment
-key = "value"  # Inline comment
-```
+### 2.1 Whitespace
 
-### Whitespace
+- Spaces, tabs, and newlines are allowed between tokens.
+- Newlines do not have semantic meaning by themselves.
 
-- Spaces and tabs are ignored except in strings
-- Newlines separate statements
-- Indentation is not significant
+### 2.2 Comments
 
-### Identifiers
+- Only `#` line comments are supported.
+- Everything from `#` to end-of-line is ignored.
 
-Identifiers start with a letter or underscore, followed by letters, digits, or underscores:
-
-```
-identifier
-server_port
-_my_var
-```
-
-### Keywords
-
-| Keyword | Description |
-|---------|-------------|
-| `do` | Opens a block |
-| `end` | Closes a block |
-| `true` | Boolean true (used as identifier) |
-| `false` | Boolean false (used as identifier) |
-
-## Grammar
-
-```
-program     ::= block*
-block       ::= identifier do properties? blocks? end
-properties  ::= property+
-property    ::= identifier = value
-blocks      ::= block+
-value       ::= string | number | boolean | array
-string      ::= " characters "
-number      ::= integer | float
-integer     ::= digit+
-float       ::= integer . integer
-boolean     ::= true | false
-array       ::= [ values? ]
-values      ::= value (, value)*
-```
-
-## Data Types
-
-### Strings
-
-Strings are enclosed in double quotes. Escape sequences:
-
-| Escape | Character |
-|--------|-----------|
-| `\"` | Double quote |
-| `\n` | Newline |
-| `\t` | Tab |
+Example:
 
 ```rcl
-name = "John Doe"
-path = "/usr/local/bin"
-quoted = "He said \"hello\""
-```
-
-### Numbers
-
-Integers and floating-point numbers:
-
-```rcl
-port = 8080
-large = 12598959
-ratio = 3.14
-negative = -42
-```
-
-### Booleans
-
-```rcl
-enabled = true
-disabled = false
-```
-
-### Arrays
-
-```rcl
-items = ["apple", "banana", "cherry"]
-numbers = [1, 2, 3, 4, 5]
-empty = []
-```
-
-### Blocks
-
-Blocks group related configuration:
-
-```rcl
+# top-level comment
 server do
-  host = "localhost"
-  port = 3000
+  port = 8080 # inline comment
 end
 ```
 
-Nested blocks:
+### 2.3 Identifiers
+
+- Must start with `[A-Za-z_]`
+- Continue with `[A-Za-z0-9_]`
+
+### 2.4 Strings
+
+- Only double-quoted strings are valid: `"..."`
+- Supported escapes: `\"`, `\\`, `\n`, `\t`
+- Single-quoted strings are invalid syntax.
+
+### 2.5 Numbers
+
+- Integer: `123`, `-42`
+- Float: `3.14`, `-0.5`
+
+### 2.6 Booleans
+
+- `true`
+- `false`
+
+## 3. Grammar
+
+```ebnf
+program         ::= block*
+block           ::= identifier argument? "do" statement* "end"
+argument        ::= string
+statement       ::= property | block
+property        ::= property_key "=" value
+property_key    ::= identifier ("." identifier)*
+value           ::= string | number | boolean | array
+array           ::= "[" (value ("," value)*)? "]"
+```
+
+## 4. Data Model
+
+## 4.1 AST Nodes
+
+- `Document`
+- `BlockNode`
+- `StringNode`
+- `NumberNode`
+- `BooleanNode`
+- `ArrayNode`
+
+## 4.2 Hash Projection (`to_h`)
+
+`Document#to_h` projects AST into nested maps/arrays/scalars.
+
+### 4.2.1 Properties
+
+`key = value` becomes:
+
+```json
+{ "key": value }
+```
+
+### 4.2.2 Dotted keys
+
+`tls.cert_path = "/etc/cert.pem"` stays literal:
+
+```json
+{ "tls.cert_path": "/etc/cert.pem" }
+```
+
+### 4.2.3 Regular blocks
 
 ```rcl
 server do
-  host = "localhost"
-  
-  ssl do
-    enabled = true
-    cert = "/path/to/cert"
-  end
-end
-```
-
-## Examples
-
-### Simple Configuration
-
-```rcl
-# Application settings
-app do
-  name = "MyApp"
-  version = "1.0.0"
-  debug = true
-end
-```
-
-### Server Configuration
-
-```rcl
-server do
-  address = "0.0.0.0"
   port = 8080
-  
-  ssl do
-    enabled = true
-    cert = "/etc/ssl/cert.pem"
-    key = "/etc/ssl/key.pem"
-  end
 end
 ```
 
-### Database Configuration
+becomes:
+
+```json
+{ "server": { "port": 8080 } }
+```
+
+### 4.2.4 Named blocks (argument blocks)
+
+Any block with string argument is projected as `name -> arg -> object`.
 
 ```rcl
-database do
-  host = "localhost"
-  port = 5432
-  name = "myapp"
-  pool_size = 10
-  timeout = 30.5
-  
-  credentials do
-    username = "admin"
-    password = "secret"
-  end
+region "us" do
+  name = "My name"
 end
 ```
 
-### Array Values
+becomes:
 
-```rcl
-features = ["auth", "logging", "cache"]
-allowed_hosts = ["localhost", "example.com"]
-ports = [80, 443, 8080]
+```json
+{ "region": { "us": { "name": "My name" } } }
 ```
 
-## Implementation Notes
+Multiple argument blocks merge under same base key:
 
-### Token Types
+```rcl
+region "us" do
+  name = "US"
+end
+region "eu" do
+  name = "EU"
+end
+```
 
-| Type | Description |
-|------|-------------|
-| `Identifier` | Variable or block names |
-| `String` | Quoted string literal |
-| `Number` | Integer or float |
-| `Equal` | `=` assignment operator |
-| `Comma` | `,` array separator |
-| `Do` | `do` keyword |
-| `End` | `end` keyword |
-| `LBracket` | `[` array start |
-| `RBracket` | `]` array end |
-| `EOF` | End of input |
+becomes:
 
-### AST Nodes
+```json
+{
+  "region": {
+    "us": { "name": "US" },
+    "eu": { "name": "EU" }
+  }
+}
+```
 
-- `Document` - Root node containing blocks
-- `BlockNode` - Block with name, properties, and nested blocks
-- `StringNode` - String value
-- `NumberNode` - Numeric value (Int32, Int64, or Float64)
-- `BooleanNode` - Boolean value
-- `ArrayNode` - Array of values
+## 5. Formatting
 
-### Error Handling
+Canonical formatter emits:
 
-The parser raises errors for:
-- Unexpected tokens
-- Missing `end` for blocks
-- Missing `]` for arrays
-- Invalid escape sequences
+- double-quoted strings
+- explicit `do ... end` block structure
+- array literals with comma separators
 
-## Version History
+## 6. Native Conversion
 
-### 1.0.0
+RCL provides native conversion from projected hash model to:
 
-- Initial release
-- Ruby-like block syntax
-- Type-safe value parsing
-- Custom block handlers
+- YAML (`to_yaml`)
+- TOML (`to_toml`)
+- HCL (`to_hcl`)
+
+### 6.1 Conversion invariants
+
+- Named blocks must stay `name -> arg -> object`.
+- Dotted keys remain literal keys.
+- Scalar values preserve type (`string`, `number`, `bool`).
+
+## 7. Errors
+
+Parser must fail on:
+
+- unexpected token
+- unterminated string
+- invalid escape sequence
+- missing `end`
+- missing `]`
+- use of unsupported string form (single quotes)
+
+Error messages should include line and column where available.
+
+## 8. Compatibility Notes
+
+- `#` comments are supported.
+- `//` comments are not part of the language.
+- Single-quoted strings are not part of the language.

@@ -3,10 +3,17 @@
   "version": "0.1.0",
   "description": "RCL parser and formatter for TypeScript",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test dist/test/parser.test.js"
+    "test": "npm run build && node --test dist/test/parser.test.js"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "typescript": "^5.6.2"
   }
 }

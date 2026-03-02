@@ -1,8 +1,8 @@
 # RCL Document
 # Represents a parsed RCL configuration document
-
 require "./ast"
 require "json"
+require "set"
 
 module RCL
   class Document
@@ -93,7 +93,6 @@ module RCL
     # Convert to Hash
     def to_h : Hash(String, RCL::Value)
       result = {} of String => RCL::Value
-      
       @blocks.each do |block|
         result[block.name] = block_to_h(block)
       end
@@ -126,9 +125,27 @@ module RCL
         result[key] = node_to_h(node)
       end
 
-      # Add nested blocks
-      block.blocks.each do |key, nested|
-        result[key] = block_to_h(nested)
+      children = unique_child_blocks(block)
+
+      plain_children = children.select { |child| child.argument.nil? }
+      named_children = children.select { |child| !child.argument.nil? }
+
+      plain_children.each do |child|
+        child_h = block_to_h(child)
+        existing = result[child.name]?
+        if existing.is_a?(Hash(String, RCL::Value))
+          result[child.name] = child_h.merge(existing) { |_k, left, right| right }
+        else result[child.name] = child_h
+        end
+      end
+
+      named_children.each do |child|
+        base = child.name
+        arg = child.argument.not_nil!
+        branch = result[base]?
+        branch_h = branch.is_a?(Hash(String, RCL::Value)) ? branch : ({} of String => RCL::Value)
+        branch_h[arg] = block_to_h(child)
+        result[base] = branch_h
       end
 
       result
@@ -159,6 +176,24 @@ module RCL
     # Get all root keys
     def keys : Array(String)
       @root.keys
+    end
+
+    private def unique_child_blocks(block : BlockNode) : Array(BlockNode)
+      seen = Set(UInt64).new
+      out = [] of BlockNode
+      block.blocks.each_value do |child|
+        oid = child.object_id
+        next if seen.includes?(oid)
+        seen << oid
+        out << child
+      end
+      block.named_blocks.each do |child|
+        oid = child.object_id
+        next if seen.includes?(oid)
+        seen << oid
+        out << child
+      end
+      out
     end
   end
 end

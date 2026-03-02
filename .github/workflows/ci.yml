@@ -20,7 +20,10 @@ jobs:
               echo "File exceeds 200 lines: $f ($lines)"
               bad=1
             fi
-          done < <(find packages \( -name '*.ts' -o -name '*.go' -o -name '*.kt' -o -name '*.swift' -o -name '*.rs' \) -type f)
+          done < <(find . -type f \
+            \( -name '*.cr' -o -name '*.ts' -o -name '*.go' -o -name '*.kt' -o -name '*.swift' -o -name '*.rs' -o -name '*.rb' -o -name '*.yml' -o -name '*.yaml' -o -name '*.toml' -o -name '*.hcl' -o -name '*.rcl' \) \
+            ! -path './.git/*' \
+            ! -path './.github/workflows/*')
           if [ "$bad" -ne 0 ]; then
             exit 1
           fi
@@ -81,3 +84,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift test
+
+  actions-generator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crystal-lang/install-crystal@v1
+      - name: Generate workflows from RCL DSL
+        run: crystal run shards/actions/scripts/generate_workflows.cr
+      - name: Check generated workflow fixture
+        run: diff -u shards/actions/fixtures/expected/generated-ci.yml .github/workflows/generated-ci.yml

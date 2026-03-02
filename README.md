@@ -8,9 +8,11 @@ A Ruby-like configuration language parser written in Crystal.
 - Standalone parser - Independent library, reusable for any project
 - Custom block handlers - Register handlers for specific block types
 - Type-safe values - Strings, numbers, booleans, arrays, nested blocks
-- Comments - Support for # and // comments
+- Comments - Support for # comments
 - Stable AST contract - `Document#to_ast_h` and `Document#to_json`
 - Formatter - Convert parsed AST back to canonical RCL text
+- Native conversion - Export to YAML/TOML/HCL
+- Named blocks - `region "us" do` projects to `region.us`
 
 ## Installation
 
@@ -46,6 +48,11 @@ json = doc.to_json
 
 # Format
 source = RCL.format(doc)
+
+# Convert
+yaml = RCL.to_yaml(doc)
+toml = RCL.to_toml(doc)
+hcl = RCL.to_hcl(doc)
 ```
 
 ## Example RCL File
@@ -81,9 +88,10 @@ Multi-language package workspace is available under `packages/`.
 
 - `packages/ruby` - Ruby parser + formatter
 - `packages/typescript` - TypeScript parser + formatter
-- `packages/go` - Go scaffold
-- `packages/kotlin` - Kotlin scaffold
-- `packages/swift` - Swift scaffold
+- `packages/go` - Go parser + formatter + converters
+- `packages/kotlin` - Kotlin parser + formatter + converters
+- `packages/swift` - Swift parser + formatter + converters
+- `packages/rust` - Rust parser + formatter + converters
 
 ## License
 

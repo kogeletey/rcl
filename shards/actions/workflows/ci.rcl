@@ -1,0 +1,14 @@
+workflow "generated-ci" do
+  name = "Generated CI"
+  on = ["push", "pull_request"]
+
+  job "typescript" do
+    runs_on = "ubuntu-latest"
+    steps = ["uses:actions/checkout@v4", "run:npm install", "run:npm test"]
+  end
+
+  job "go" do
+    runs_on = "ubuntu-latest"
+    steps = ["uses:actions/checkout@v4", "run:go test ./..."]
+  end
+end
