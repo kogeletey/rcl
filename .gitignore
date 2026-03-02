@@ -1,6 +1,6 @@
 # Crystal
 .crystal
-lib/
+implementations/crystal/lib/
 shard.lock
 *.so
 
