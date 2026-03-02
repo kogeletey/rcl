@@ -1,7 +1,7 @@
 defmodule RCL.Core.Lex do
   def lex(src), do: (scan(src, 0, 1, 1, []) |> Enum.reverse()) ++ [{:eof, nil, line(src), 1}]
 
-  defp scan(src, i, l, c, acc) when i >= byte_size(src), do: acc
+  defp scan(src, i, _l, _c, acc) when i >= byte_size(src), do: acc
   defp scan(src, i, l, c, acc) do
     ch = :binary.at(src, i)
     cond do

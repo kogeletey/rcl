@@ -36,7 +36,11 @@ bad = [
 ]
 for b in bad
   ok = false
-  try RCL.parse(b) catch ok = true end
+  try
+    RCL.parse(b)
+  catch
+    ok = true
+  end
   ok || error("expected error")
 end
 

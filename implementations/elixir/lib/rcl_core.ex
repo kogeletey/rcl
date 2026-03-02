@@ -125,8 +125,17 @@ defmodule RCL.Core do
     if Enum.any?(keys, fn k -> k == path or prefix?(k, path) or prefix?(path, k) end), do: fail("duplicate or conflicting key path", l, c)
   end
 
-  defp prefix?(a, b), do: length(a) < length(b) and Enum.zip(a, b) |> Enum.all?(fn {x, y} -> x == y end)
-  defp expect(ts, p, t), do: case token(ts, p) do {^t, v, l, c} -> {t, v, l, c}; {_, _, l, c} -> fail("unexpected token", l, c) end
+  defp prefix?(a, b) do
+    length(a) < length(b) and
+      Enum.zip(a, b) |> Enum.all?(fn {x, y} -> x == y end)
+  end
+
+  defp expect(ts, p, t) do
+    case token(ts, p) do
+      {^t, v, l, c} -> {t, v, l, c}
+      {_, _, l, c} -> fail("unexpected token", l, c)
+    end
+  end
   defp token(ts, p), do: Enum.at(ts, p)
   defp fail(m, l, c), do: raise("line #{l}, column #{c}: #{m}")
 
