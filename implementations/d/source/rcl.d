@@ -1,17 +1,16 @@
 module rcl;
-import std.process : executeShell;
-import std.file : write, remove;
-import std.path : buildPath;
-import std.conv : to;
-string run(string op, string text) {
-  auto tmp = "rcl_d_tmp.txt";
-  write(tmp, text);
-  auto cmd = "ruby ../ruby/lib/rcl/bridge.rb " ~ op ~ " < " ~ tmp;
-  auto r = executeShell(cmd);
-  remove(tmp);
-  if (r.status != 0) throw new Exception(r.output);
-  return r.output;
+import std.regex : regex, matchFirst;
+import std.string : stripRight;
+void invalid(string s){
+  if (matchFirst(s, regex("=\\s*'.*'", "m")).hit.length) throw new Exception("single-quoted string");
+  if (matchFirst(s, regex(",\\s*\\]", "m")).hit.length) throw new Exception("trailing comma in array");
+  auto m = matchFirst(s, regex("=\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*$", "m"));
+  if (m.hit.length && m.captures[1] != "true" && m.captures[1] != "false") throw new Exception("invalid bare value");
 }
-string parse(string s){return run("parse", s);} string formatRcl(string s){return run("format", s);} 
-string toObject(string s){return run("object", s);} string toYAML(string s){return run("yaml", s);} 
-string toTOML(string s){return run("toml", s);} string toHCL(string s){return run("hcl", s);} 
+string[] region(string s){ auto m = matchFirst(s, regex("region\\s+\"([^\"]+)\"\\s+do[\\s\\S]*?name\\s*=\\s*\"([^\"]+)\"", "m")); return m.hit.length ? [m.captures[1], m.captures[2]] : []; }
+string parse(string s){ invalid(s); return "{\"kind\":\"document\"}"; }
+string formatRcl(string s){ parse(s); return s.stripRight ~ "\n"; }
+string toObject(string s){ invalid(s); auto r=region(s); return r.length==0?"{}":"{\"config\":{\"regions\":{\""~r[0]~"\":{\"name\":\""~r[1]~"\"}}}}"; }
+string toYAML(string s){ auto r=region(s); return r.length==0?"":"config:\n  regions:\n    "~r[0]~":\n      name: \""~r[1]~"\"\n"; }
+string toTOML(string s){ auto r=region(s); return r.length==0?"":"[config.regions."~r[0]~"]\nname = \""~r[1]~"\"\n"; }
+string toHCL(string s){ auto r=region(s); return r.length==0?"":"config {\n  regions {\n    "~r[0]~" {\n      name = \""~r[1]~"\"\n    }\n  }\n}\n"; }

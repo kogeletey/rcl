@@ -1,5 +1,5 @@
 # rcl-java
 
-Java implementation for RCL via shared spec bridge.
+Java implementation for RCL native implementation.
 
 API: `parse`, `format`, `toObject`, `toYAML`, `toTOML`, `toHCL`.

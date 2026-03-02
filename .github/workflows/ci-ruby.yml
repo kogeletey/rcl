@@ -1,0 +1,19 @@
+name: CI Ruby
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  ruby:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/ruby
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+      - run: ruby -Ilib test/parser_test.rb

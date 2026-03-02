@@ -1,0 +1,19 @@
+name: CI Zig
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  zig:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/zig
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v1
+        with:
+          version: "0.13.0"
+      - run: zig test rcl.zig

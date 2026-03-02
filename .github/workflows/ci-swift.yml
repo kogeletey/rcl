@@ -1,0 +1,16 @@
+name: CI Swift
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  swift:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: implementations/swift
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test

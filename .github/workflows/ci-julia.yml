@@ -1,0 +1,19 @@
+name: CI Julia
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  julia:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/julia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.10"
+      - run: julia test/runtests.jl

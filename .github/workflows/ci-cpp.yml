@@ -1,0 +1,17 @@
+name: CI C++
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  cpp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/cpp
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -std=c++17 -Wall -Wextra -O2 rcl.cpp test.cpp -o test_bin
+      - run: ./test_bin

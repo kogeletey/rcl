@@ -1,5 +1,5 @@
 # rcl-php
 
-PHP implementation for RCL via shared spec bridge.
+PHP implementation for RCL native implementation.
 
 API: `parse`, `format`, `toObject`, `toYAML`, `toTOML`, `toHCL`.

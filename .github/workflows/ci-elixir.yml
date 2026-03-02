@@ -1,0 +1,20 @@
+name: CI Elixir
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  elixir:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/elixir
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17.2"
+          otp-version: "27.0"
+      - run: elixir test/rcl_test.exs

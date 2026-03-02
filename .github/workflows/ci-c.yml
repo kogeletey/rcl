@@ -1,0 +1,17 @@
+name: CI C
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/c
+    steps:
+      - uses: actions/checkout@v4
+      - run: gcc -std=c11 -Wall -Wextra -O2 rcl.c test.c -o test_bin
+      - run: ./test_bin

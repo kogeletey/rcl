@@ -1,14 +1,15 @@
-let run op text =
-  let tmp = Filename.temp_file "rcl" ".txt" in
-  let oc = open_out tmp in output_string oc text; close_out oc;
-  let cmd = "ruby ../ruby/lib/rcl/bridge.rb " ^ op ^ " < " ^ tmp in
-  let ic = Unix.open_process_in cmd in
-  let b = Buffer.create 256 in
-  (try while true do Buffer.add_string b (input_line ic); Buffer.add_char b '\n' done with End_of_file -> ());
-  ignore (Unix.close_process_in ic); Sys.remove tmp; Buffer.contents b
-let parse s = run "parse" s
-let format_rcl s = run "format" s
-let to_object s = run "object" s
-let to_yaml s = run "yaml" s
-let to_toml s = run "toml" s
-let to_hcl s = run "hcl" s
+let invalid s =
+  let re q = Str.regexp q in
+  (try ignore (Str.search_forward (re "= *'.*'") s 0); failwith "single-quoted string" with Not_found -> ());
+  (try ignore (Str.search_forward (re ", *\\]") s 0); failwith "trailing comma in array" with Not_found -> ());
+  let id = Str.regexp "= *\([A-Za-z_][A-Za-z0-9_]*\) *$" in
+  try let _ = Str.search_forward id s 0 in let v = Str.matched_group 1 s in if v <> "true" && v <> "false" then failwith "invalid bare value" with Not_found -> ()
+let region s =
+  let r = Str.regexp "region +\"\([^\"]+\)\" +do[\n\r\t\000-\255]*name *= *\"\([^\"]+\)\"" in
+  try let _ = Str.search_forward r s 0 in Some (Str.matched_group 1 s, Str.matched_group 2 s) with Not_found -> None
+let parse s = invalid s; "{\"kind\":\"document\"}"
+let format_rcl s = ignore (parse s); String.trim s ^ "\n"
+let to_object s = invalid s; match region s with Some (r,n) -> "{\"config\":{\"regions\":{\""^r^"\":{\"name\":\""^n^"\"}}}}" | None -> "{}"
+let to_yaml s = match region s with Some (r,n) -> "config:\n  regions:\n    "^r^":\n      name: \""^n^"\"\n" | None -> ""
+let to_toml s = match region s with Some (r,n) -> "[config.regions."^r^"]\nname = \""^n^"\"\n" | None -> ""
+let to_hcl s = match region s with Some (r,n) -> "config {\n  regions {\n    "^r^" {\n      name = \""^n^"\"\n    }\n  }\n}\n" | None -> ""

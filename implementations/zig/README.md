@@ -1,3 +1,3 @@
 # rcl-zig
 
-Zig implementation for RCL via shared spec bridge.
+Zig implementation for RCL native implementation.

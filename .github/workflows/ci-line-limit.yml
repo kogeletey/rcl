@@ -1,0 +1,29 @@
+name: CI Line Limit
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  line-limit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce max 200 lines per source/test file
+        run: |
+          set -euo pipefail
+          bad=0
+          while IFS= read -r f; do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt 200 ]; then
+              echo "File exceeds 200 lines: $f ($lines)"
+              bad=1
+            fi
+          done < <(find . -type f \
+            \( -name '*.cr' -o -name '*.ts' -o -name '*.go' -o -name '*.kt' -o -name '*.swift' -o -name '*.rs' -o -name '*.rb' -o -name '*.yml' -o -name '*.yaml' -o -name '*.toml' -o -name '*.hcl' -o -name '*.rcl' -o -name '*.php' -o -name '*.ex' -o -name '*.ml' -o -name '*.jl' -o -name '*.c' -o -name '*.cpp' -o -name '*.zig' -o -name '*.java' -o -name '*.d' -o -name '*.cs' -o -name '*.lua' \) \
+            ! -path './.git/*' \
+            ! -path './.github/workflows/*')
+          if [ "$bad" -ne 0 ]; then
+            exit 1
+          fi

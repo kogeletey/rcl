@@ -1,0 +1,19 @@
+name: CI Lua
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/lua
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+      - run: lua test.lua

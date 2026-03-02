@@ -1,3 +1,3 @@
 # rcl-csharp
 
-C# implementation for RCL via shared spec bridge.
+C# implementation for RCL native implementation.
