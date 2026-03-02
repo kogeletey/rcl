@@ -1,6 +1,6 @@
 # Tree-sitter Grammar for RCL
 
-Ray Configuration Language parser for Tree-sitter.
+Ruby-like Configuration Language parser for Tree-sitter.
 
 ## Installation
 
@@ -71,28 +71,27 @@ cp src/parser.so ~/.local/share/nvim/lazy/nvim-treesitter/parser/rcl.so
 ```
 source_file → statement*
 statement → block | assignment
-block → identifier DO statement* END
-assignment → identifier EQUAL value
-value → string | number | array
+block → identifier string? DO statement* END
+assignment → property_key EQUAL value
+property_key → identifier ("." identifier)*
+value → string | number | boolean | array
 string → "..."
-number → digits
+number → -?digits(.digits)?
+boolean → true | false
 array → [value, ...]
-identifier → alphanumeric
-comment → #... or //...
+identifier → [A-Za-z_][A-Za-z0-9_]*
+comment → #...
 ```
 
 ## Example
 
 ```rcl
-xray do
-  server_address = "provider.boogle.cloud"
-  server_port = 32185
-  
-  users = ["a@b.com", "c@d.com"]
-  
-  akash do
-    deployment_name = "service-1"
-    pricing_amount = 18
+config do
+  enabled = true
+  port = 8080
+  tls.cert_path = "/etc/cert.pem"
+  region "us" do
+    name = "My Name"
   end
 end
 ```

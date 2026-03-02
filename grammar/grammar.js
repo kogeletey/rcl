@@ -1,22 +1,9 @@
-/**
- * Treesitter Grammar for RCL (Ray Configuration Language)
- *
- * Install:
- *   npm install -g tree-sitter-cli
- *   tree-sitter generate
- *   tree-sitter test
- */
-
 module.exports = grammar({
   name: 'rcl',
 
   extras: $ => [
     /\s/,
     $.comment
-  ],
-
-  conflicts: $ => [
-    [$.block],
   ],
 
   rules: {
@@ -27,55 +14,58 @@ module.exports = grammar({
       $.assignment
     ),
 
-    // Block: name do ... end
     block: $ => seq(
       $.identifier,
+      optional($.string),
       'do',
       repeat($._statement),
       'end'
     ),
 
-    // Assignment: name = value
     assignment: $ => seq(
-      $.identifier,
+      $.property_key,
       '=',
       $._value
+    ),
+
+    property_key: $ => seq(
+      $.identifier,
+      repeat(seq('.', $.identifier))
     ),
 
     _value: $ => choice(
       $.string,
       $.number,
+      $.boolean,
       $.array
     ),
 
-    // String: "..."
     string: $ => seq(
       '"',
       repeat(choice(
-        /[^"\\]/,
-        seq('\\', '"')
+        token.immediate(/[^"\\\n]+/),
+        $.escape_sequence
       )),
       '"'
     ),
 
-    // Number: integers and floats
-    number: $ => /\d+(\.\d+)?/,
+    escape_sequence: $ => token.immediate(seq('\\', /["\\nt]/)),
 
-    // Array: [a, b, c]
+    number: $ => /-?\d+(\.\d+)?/,
+
+    boolean: $ => choice('true', 'false'),
+
     array: $ => seq(
       '[',
       optional(seq(
         $._value,
-        repeat(seq(',', $._value)),
-        optional(',')
+        repeat(seq(',', $._value))
       )),
       ']'
     ),
 
-    // Identifier: alphanumeric with underscores
-    identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
+    identifier: $ => /[A-Za-z_][A-Za-z0-9_]*/,
 
-    // Comment: # or //
     comment: $ => token(
       seq('#', /.*/)
     )

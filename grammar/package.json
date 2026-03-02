@@ -1,7 +1,7 @@
 {
   "name": "tree-sitter-rcl",
   "version": "1.0.0",
-  "description": "Treesitter grammar for RCL (Ray Configuration Language)",
+  "description": "Tree-sitter grammar for RCL",
   "main": "bindings/node",
   "keywords": ["parser", "lexer", "rcl", "treesitter"],
   "author": "Your Name",
