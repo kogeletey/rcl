@@ -30,7 +30,7 @@ jobs:
         with:
           compiler: ldc-latest
       - if: runner.os == 'Windows'
-        run: dmd -i -Isource source/rcl/package.d test/test.d -oftest_bin.exe
+        run: dmd -i -Isource source/rcl/package.d test/test.d -of=test_bin.exe
       - if: runner.os != 'Windows'
         run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
       - if: runner.os == 'Windows'
