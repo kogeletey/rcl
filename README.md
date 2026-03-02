@@ -9,7 +9,7 @@ A Ruby-like configuration language parser written in Crystal.
 - Custom block handlers - Register handlers for specific block types
 - Type-safe values - Strings, numbers, booleans, arrays, nested blocks
 - Comments - Support for # comments
-- Stable AST contract - `Document#to_ast_h` and `Document#to_json`
+- Stable AST contract - `Document#to_json`
 - Formatter - Convert parsed AST back to canonical RCL text
 - Native conversion - Export to YAML/TOML/HCL
 - Named blocks - `region "us" do` projects to `regions.us`
