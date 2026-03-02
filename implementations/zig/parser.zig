@@ -32,7 +32,13 @@ const Lexer = struct {
             while (!self.eof() and self.cur() != '"') {
                 if (self.cur() == '\\') {
                     self.adv(); if (self.eof()) return ParseError.UnterminatedString;
-                    switch (self.cur()) { '"' => try b.append('"'), '\\' => try b.append('\\'), 'n' => try b.append('\n'), 't' => try b.append('\t'), else => return ParseError.InvalidEscape };
+                    switch (self.cur()) {
+                        '"' => try b.append('"'),
+                        '\\' => try b.append('\\'),
+                        'n' => try b.append('\n'),
+                        't' => try b.append('\t'),
+                        else => return ParseError.InvalidEscape,
+                    }
                     self.adv(); continue;
                 }
                 try b.append(self.cur()); self.adv();
