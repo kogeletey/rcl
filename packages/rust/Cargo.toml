@@ -1,0 +1,10 @@
+[package]
+name = "rcl-parser"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "RCL parser and formatter"
+
+[lib]
+name = "rcl_parser"
+path = "src/lib.rs"
