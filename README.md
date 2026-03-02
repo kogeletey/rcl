@@ -21,7 +21,7 @@ For local development, add dependency from monorepo path:
 ```yaml
 dependencies:
   rcl:
-    path: ./packages/crystal
+    path: ./implementations/crystal
 ```
 
 ## Usage
@@ -95,26 +95,26 @@ features = ["auth", "logging", "cache"]
 
 ```bash
 # Install dependencies
-cd packages/crystal && crystal deps
+cd implementations/crystal && crystal deps
 
 # Run tests
-cd packages/crystal && crystal spec
+cd implementations/crystal && crystal spec
 
 # Build
-cd packages/crystal && crystal build src/rcl.cr
+cd implementations/crystal && crystal build src/rcl.cr
 ```
 
-## Packages
+## Implementations
 
-Multi-language package workspace is available under `packages/`.
+Multi-language workspace is available under `implementations/`.
 
-- `packages/crystal` - Crystal parser + formatter + converters
-- `packages/ruby` - Ruby parser + formatter
-- `packages/typescript` - TypeScript parser + formatter
-- `packages/go` - Go parser + formatter + converters
-- `packages/kotlin` - Kotlin parser + formatter + converters
-- `packages/swift` - Swift parser + formatter + converters
-- `packages/rust` - Rust parser + formatter + converters
+- `implementations/crystal` - Crystal parser + formatter + converters
+- `implementations/ruby` - Ruby parser + formatter
+- `implementations/typescript` - TypeScript parser + formatter
+- `implementations/go` - Go parser + formatter + converters
+- `implementations/kotlin` - Kotlin parser + formatter + converters
+- `implementations/swift` - Swift parser + formatter + converters
+- `implementations/rust` - Rust parser + formatter + converters
 
 ## License
 
