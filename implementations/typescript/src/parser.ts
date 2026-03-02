@@ -34,8 +34,9 @@ export class Parser {
     const seenKeys = new Set<string>();
 
     while (this.current.type !== TokenType.End) {
-      if (this.current.type === TokenType.EOF) throw this.err("missing 'end' for block");
-      if (this.current.type !== TokenType.Identifier) throw this.err(`expected identifier, got ${this.current.type}`);
+      const curType = this.current.type;
+      if (curType === TokenType.EOF) throw this.err("missing 'end' for block");
+      if (curType !== TokenType.Identifier) throw this.err(`expected identifier, got ${this.current.type}`);
 
       const next = this.peekToken();
       if (next.type === TokenType.Do || next.type === TokenType.String) {
@@ -62,8 +63,11 @@ export class Parser {
     let key = this.current.value;
     this.eat(TokenType.Identifier);
     for (;;) {
-      if (this.current.type !== TokenType.Dot) break;
+      const curType = this.current.type;
+      if (curType !== TokenType.Dot) break;
       this.eat(TokenType.Dot);
+      const afterDot = this.current.type;
+      if (afterDot !== TokenType.Identifier) throw this.err("expected identifier after dot");
       key += `.${this.current.value}`;
       this.eat(TokenType.Identifier);
     }
@@ -93,8 +97,10 @@ export class Parser {
     if (this.current.type !== TokenType.RBracket) {
       elements.push(this.parseValue());
       for (;;) {
-        if (this.current.type !== TokenType.Comma) break;
-        if (this.peekToken().type === TokenType.RBracket) throw this.err("trailing comma in array");
+        const curType = this.current.type;
+        if (curType !== TokenType.Comma) break;
+        const nextType = this.peekToken().type;
+        if (nextType === TokenType.RBracket) throw this.err("trailing comma in array");
         this.eat(TokenType.Comma);
         elements.push(this.parseValue());
       }
