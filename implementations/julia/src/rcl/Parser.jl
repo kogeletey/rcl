@@ -17,7 +17,8 @@ function peek_token(p::Parser)
   t
 end
 
-isprefix(a::Vector{String}, b::Vector{String}) = length(a) < length(b) && all(a[i] == b[i] for i in eachindex(a))
+isprefix(a::AbstractVector{<:AbstractString}, b::AbstractVector{<:AbstractString}) =
+  length(a) < length(b) && all(a[i] == b[i] for i in eachindex(a))
 
 function parse_property_key!(p::Parser)
   key = p.current.value; eat!(p, :IDENT)
