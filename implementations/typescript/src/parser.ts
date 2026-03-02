@@ -64,7 +64,6 @@ export class Parser {
     for (;;) {
       if (this.current.type !== TokenType.Dot) break;
       this.eat(TokenType.Dot);
-      if (this.current.type !== TokenType.Identifier) throw this.err("expected identifier after dot");
       key += `.${this.current.value}`;
       this.eat(TokenType.Identifier);
     }
@@ -95,8 +94,8 @@ export class Parser {
       elements.push(this.parseValue());
       for (;;) {
         if (this.current.type !== TokenType.Comma) break;
+        if (this.peekToken().type === TokenType.RBracket) throw this.err("trailing comma in array");
         this.eat(TokenType.Comma);
-        if (this.current.type === TokenType.RBracket) throw this.err("trailing comma in array");
         elements.push(this.parseValue());
       }
     }
