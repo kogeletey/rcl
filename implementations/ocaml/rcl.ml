@@ -101,7 +101,8 @@ let parse s =
       else if n.t="EQ" || n.t="DOT" then let k=prop_key() in ensure seen k; eat "EQ"; props := !props @ [k, value()]
       else err (!cur).l (!cur).c ("invalid statement after '"^(!cur).v^"'")
     done;
-    eat "END"; {name;arg;props=!props;blocks=!blocks;named=!named}
+    eat "END";
+    { name = name; arg = arg; props = !props; blocks = !blocks; named = !named }
   in
   let rec roots a = if (!cur).t="EOF" then List.rev a else roots (block()::a) in
   roots []
