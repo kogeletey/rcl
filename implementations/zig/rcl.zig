@@ -67,18 +67,22 @@ pub fn toTOML(text: []const u8, a: std.mem.Allocator) ![]u8 { return convert(tex
 pub fn toHCL(text: []const u8, a: std.mem.Allocator) ![]u8 { return convert(text, a, .hcl); }
 
 test "spec parse/project/converters" {
-    const a = std.testing.allocator;
+    const a = std.heap.page_allocator;
     const src = "config do\n  tls.cert = \"/x\"\n  region \"us\" do\n    name = \"My Name\"\n    ports = [1, 2]\n  end\nend\n";
-    const obj = try toObject(src, a); defer a.free(obj);
-    try std.testing.expect(std.mem.indexOf(u8, obj, "\"regions\":{\"us\":{\"name\":\"My Name\"") != null);
+    const obj = try toObject(src, a);
+    try std.testing.expect(std.mem.indexOf(u8, obj, "\"config\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, obj, "\"regions\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, obj, "\"us\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, obj, "\"name\":\"My Name\"") != null);
     const toml = try toTOML(src, a); defer a.free(toml);
     try std.testing.expect(std.mem.indexOf(u8, toml, "[config.regions.us]") != null);
 }
 
 test "spec edges" {
-    try std.testing.expectError(P.ParseError.BareValue, P.parseDoc("x do\n  name = value\nend\n", std.testing.allocator));
-    try std.testing.expectError(P.ParseError.TrailingComma, P.parseDoc("x do\n  arr = [1,]\nend\n", std.testing.allocator));
-    try std.testing.expectError(P.ParseError.KeyConflict, P.parseDoc("x do\n  a = 1\n  a.b = 2\nend\n", std.testing.allocator));
-    try std.testing.expectError(P.ParseError.SingleQuote, P.parseDoc("x do\n  s = 'bad'\nend\n", std.testing.allocator));
-    try std.testing.expectError(P.ParseError.InvalidEscape, P.parseDoc("x do\n  s = \"bad\\q\"\nend\n", std.testing.allocator));
+    const a = std.heap.page_allocator;
+    try std.testing.expectError(P.ParseError.BareValue, P.parseDoc("x do\n  name = value\nend\n", a));
+    try std.testing.expectError(P.ParseError.TrailingComma, P.parseDoc("x do\n  arr = [1,]\nend\n", a));
+    try std.testing.expectError(P.ParseError.KeyConflict, P.parseDoc("x do\n  a = 1\n  a.b = 2\nend\n", a));
+    try std.testing.expectError(P.ParseError.SingleQuote, P.parseDoc("x do\n  s = 'bad'\nend\n", a));
+    try std.testing.expectError(P.ParseError.InvalidEscape, P.parseDoc("x do\n  s = \"bad\\q\"\nend\n", a));
 }

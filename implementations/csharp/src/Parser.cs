@@ -69,7 +69,7 @@ public sealed class Parser {
 
   bool IsPrefix(string a,string b){ return a.Length<b.Length&&b.StartsWith(a+"."); }
   bool Is(TokenKind k){ return T[P].Kind==k; }
-  Token Peek(){ return P+1<T.Count?T[P+1]:T[P]; }
+  Token Peek(){ return T[P<T.Count?P:T.Count-1]; }
   Token Eat(TokenKind k,string m){ if(!Is(k)) throw Err(m); return T[P++]; }
   ParseException Err(string m){ var x=T[Math.Min(P,T.Count-1)]; return new ParseException(m,x.Line,x.Col); }
 }

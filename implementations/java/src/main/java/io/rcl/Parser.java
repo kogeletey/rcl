@@ -89,7 +89,7 @@ final class Parser {
 
   private boolean isPrefix(String a, String b) { return a.length() < b.length() && b.startsWith(a + "."); }
   private boolean is(TokenKind k) { return t.get(p).kind == k; }
-  private Token peek() { return p + 1 < t.size() ? t.get(p + 1) : t.get(p); }
+  private Token peek() { return t.get(Math.min(p, t.size() - 1)); }
   private Token eat(TokenKind k, String msg) { if (!is(k)) throw err(msg); return t.get(p++); }
   private ParseError err(String msg) { Token x = t.get(Math.min(p, t.size() - 1)); return new ParseError(msg, x.line, x.col); }
 }

@@ -16,5 +16,5 @@ jobs:
       - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: "5.1"
-      - run: ocamlc str.cma unix.cma rcl.ml test.ml -o test_bin
-      - run: ./test_bin
+      - run: opam exec -- ocamlc str.cma unix.cma rcl.ml test.ml -o test_bin
+      - run: opam exec -- ./test_bin
