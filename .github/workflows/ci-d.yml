@@ -20,7 +20,10 @@ jobs:
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-latest
-      - run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
+      - if: runner.os == 'Windows'
+        run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin.exe
+      - if: runner.os != 'Windows'
+        run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
       - if: runner.os == 'Windows'
         run: .\\test_bin.exe
       - if: runner.os != 'Windows'
