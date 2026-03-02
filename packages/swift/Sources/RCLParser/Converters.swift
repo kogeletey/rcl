@@ -1,8 +1,10 @@
 public enum Converters {
     public static func toObject(_ doc: DocumentNode) -> [String: Any] {
-        if doc.blocks.count == 1, let first = doc.blocks.first { return blockToMap(first) }
         var out: [String: Any] = [:]
-        for b in doc.blocks { out[b.name] = blockToMap(b) }
+        for b in doc.blocks {
+            if let arg = b.argument { out[namedBase(b.name)] = [arg: blockToMap(b)] }
+            else { out[b.name] = blockToMap(b) }
+        }
         return out
     }
 
@@ -23,9 +25,10 @@ public enum Converters {
             result[child.name] = childMap
         }
         for child in children where child.argument != nil {
-            var parent = (result[child.name] as? [String: Any]) ?? [:]
+            let base = namedBase(child.name)
+            var parent = (result[base] as? [String: Any]) ?? [:]
             parent[child.argument!] = blockToMap(child)
-            result[child.name] = parent
+            result[base] = parent
         }
         return result
     }
@@ -123,4 +126,6 @@ public enum Converters {
         insertPath(&branch, key: parts.dropFirst().joined(separator: "."), value: value)
         target[head] = branch
     }
+
+    private static func namedBase(_ name: String) -> String { name == "region" ? "regions" : name }
 }

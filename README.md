@@ -12,7 +12,7 @@ A Ruby-like configuration language parser written in Crystal.
 - Stable AST contract - `Document#to_ast_h` and `Document#to_json`
 - Formatter - Convert parsed AST back to canonical RCL text
 - Native conversion - Export to YAML/TOML/HCL
-- Named blocks - `region "us" do` projects to `region.us`
+- Named blocks - `region "us" do` projects to `regions.us`
 
 ## Installation
 
@@ -60,13 +60,13 @@ Named block projection example:
 ```rcl
 config do
   region "us" do
-    name = "My name"
+    name = "My Name"
   end
 end
 ```
 
 ```json
-{ "region": { "us": { "name": "My name" } } }
+{ "config": { "regions": { "us": { "name": "My Name" } } } }
 ```
 
 Constraints:

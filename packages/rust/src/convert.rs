@@ -6,9 +6,16 @@ use crate::ast::{AstNode, BlockNode, DocumentNode};
 pub enum Value { S(String), N(f64), B(bool), A(Vec<Value>), O(BTreeMap<String, Value>) }
 
 pub fn to_object(doc: &DocumentNode) -> BTreeMap<String, Value> {
-    if doc.blocks.len() == 1 { return block_to_map(&doc.blocks[0]); }
     let mut out = BTreeMap::new();
-    for b in &doc.blocks { out.insert(b.name.clone(), Value::O(block_to_map(b))); }
+    for b in &doc.blocks {
+        if let Some(arg) = &b.argument {
+            let mut arg_map = BTreeMap::new();
+            arg_map.insert(arg.clone(), Value::O(block_to_map(b)));
+            out.insert(named_base(&b.name), Value::O(arg_map));
+        } else {
+            out.insert(b.name.clone(), Value::O(block_to_map(b)));
+        }
+    }
     out
 }
 
@@ -30,9 +37,10 @@ fn block_to_map(block: &BlockNode) -> BTreeMap<String, Value> {
     }
     for c in children.iter().filter(|x| x.argument.is_some()) {
         let arg = c.argument.clone().unwrap_or_default();
-        let mut parent = match out.get(&c.name) { Some(Value::O(v)) => v.clone(), _ => BTreeMap::new() };
+        let base = named_base(&c.name);
+        let mut parent = match out.get(&base) { Some(Value::O(v)) => v.clone(), _ => BTreeMap::new() };
         parent.insert(arg, Value::O(block_to_map(c)));
-        out.insert(c.name.clone(), Value::O(parent));
+        out.insert(base, Value::O(parent));
     }
     out
 }
@@ -122,4 +130,8 @@ fn insert_path(target: &mut BTreeMap<String, Value>, key: &str, value: Value) {
     let mut next = branch;
     insert_path(&mut next, &parts[1..].join("."), value);
     target.insert(head, Value::O(next));
+}
+
+fn named_base(name: &str) -> String {
+    if name == "region" { "regions".to_string() } else { name.to_string() }
 }

@@ -15,8 +15,8 @@ npm install @rcl/parser
 ```ts
 import { parse, format, toYAML, toTOML, toHCL, toObject } from "@rcl/parser";
 
-const ast = parse('config do\n  region "us" do\n    name = "My name"\n  end\nend');
-const obj = toObject(ast); // { region: { us: { name: "My name" } } }
+const ast = parse('config do\n  region "us" do\n    name = "My Name"\n  end\nend');
+const obj = toObject(ast); // { config: { regions: { us: { name: "My Name" } } } }
 const yaml = toYAML(ast);
 const toml = toTOML(ast);
 const hcl = toHCL(ast);

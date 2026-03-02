@@ -2,8 +2,13 @@ package io.rcl
 
 object Converters {
   fun toObject(document: DocumentNode): Map<String, Any?> {
-    if (document.blocks.size == 1) return blockToMap(document.blocks.first())
-    return document.blocks.associate { it.name to blockToMap(it) }
+    if (document.blocks.isEmpty()) return emptyMap()
+    val out = linkedMapOf<String, Any?>()
+    document.blocks.forEach { root ->
+      if (root.argument != null) out[namedBase(root.name)] = mapOf(root.argument!! to blockToMap(root))
+      else out[root.name] = blockToMap(root)
+    }
+    return out
   }
 
   fun toYaml(document: DocumentNode): String = emitYaml(toObject(document), 0)
@@ -22,9 +27,10 @@ object Converters {
       result[child.name] = childMap
     }
     children.filter { it.argument != null }.forEach { child ->
-      val parent = (result[child.name] as? MutableMap<String, Any?>) ?: linkedMapOf()
+      val base = namedBase(child.name)
+      val parent = (result[base] as? MutableMap<String, Any?>) ?: linkedMapOf()
       parent[child.argument!!] = blockToMap(child)
-      result[child.name] = parent
+      result[base] = parent
     }
     return result
   }
@@ -114,4 +120,6 @@ object Converters {
     insertPath(branch, parts.drop(1).joinToString("."), value)
     target[head] = branch
   }
+
+  private fun namedBase(name: String): String = if (name == "region") "regions" else name
 }

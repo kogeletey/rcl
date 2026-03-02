@@ -24,14 +24,14 @@ test("full spec parse + format", () => {
   assert.equal(ast.blocks[0]?.name, "server");
   assert.equal((ast.blocks[0]?.properties["enabled"] as any).value, true);
   assert.equal((ast.blocks[0]?.properties["negative"] as any).value, -42);
-  assert.equal(((toObject(ast).tls as any).cert_path as any), "/etc/cert.pem");
+  assert.equal((((toObject(ast).server as any).tls as any).cert_path as any), "/etc/cert.pem");
 
   const out = format(ast);
   const reparsed = parse(out);
   assert.deepEqual(reparsed, ast);
 });
 
-test("named block maps to region.us object and converts", () => {
+test("named block maps to config.regions.us object and converts", () => {
   const src = [
     "config do",
     "  region \"us\" do",
@@ -41,10 +41,10 @@ test("named block maps to region.us object and converts", () => {
   ].join("\n");
   const ast = parse(src);
   const obj = toObject(ast);
-  assert.equal((obj.region as any).us.name, "My name");
-  assert.match(toYAML(ast), /region:/);
-  assert.match(toTOML(ast), /\[region.us\]/);
-  assert.match(toHCL(ast), /region \{/);
+  assert.equal((obj.config as any).regions.us.name, "My name");
+  assert.match(toYAML(ast), /regions:/);
+  assert.match(toTOML(ast), /\[config.regions.us\]/);
+  assert.match(toHCL(ast), /regions \{/);
 });
 
 test("syntax error includes position", () => {

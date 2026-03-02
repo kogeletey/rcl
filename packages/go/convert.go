@@ -7,9 +7,14 @@ import (
 )
 
 func ToObject(doc DocumentNode) map[string]any {
-	if len(doc.Blocks) == 1 { return blockToMap(doc.Blocks[0]) }
 	out := map[string]any{}
-	for _, b := range doc.Blocks { out[b.Name] = blockToMap(b) }
+	for _, b := range doc.Blocks {
+		if b.Argument != nil {
+			out[namedBase(b.Name)] = map[string]any{*b.Argument: blockToMap(b)}
+		} else {
+			out[b.Name] = blockToMap(b)
+		}
+	}
 	return out
 }
 
@@ -29,10 +34,11 @@ func blockToMap(block BlockNode) map[string]any {
 	for _, child := range children {
 		if child.Argument == nil { continue }
 		arg := *child.Argument
-		parent, ok := result[child.Name].(map[string]any)
+		base := namedBase(child.Name)
+		parent, ok := result[base].(map[string]any)
 		if !ok { parent = map[string]any{} }
 		parent[arg] = blockToMap(child)
-		result[child.Name] = parent
+		result[base] = parent
 	}
 	return result
 }
@@ -164,6 +170,7 @@ func scalar(v any) string {
 }
 
 func reflectInt64(v any) int64 { switch n := v.(type) { case int: return int64(n); case int32: return int64(n); case int64: return n; default: return 0 } }
+func namedBase(name string) string { if name == "region" { return "regions" }; return name }
 
 func insertPath(target map[string]any, key string, value any) {
 	parts := strings.Split(key, ".")

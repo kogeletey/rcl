@@ -51,12 +51,13 @@ final class RCLParserTests: XCTestCase {
 
         let ast = try RCL.parse(src)
         let obj = Converters.toObject(ast)
-        let region = obj["region"] as? [String: Any]
-        let us = region?["us"] as? [String: Any]
+        let config = obj["config"] as? [String: Any]
+        let regions = config?["regions"] as? [String: Any]
+        let us = regions?["us"] as? [String: Any]
         XCTAssertEqual(us?["name"] as? String, "My name")
-        XCTAssertTrue(Converters.toYAML(ast).contains("region:"))
-        XCTAssertTrue(Converters.toTOML(ast).contains("[region.us]"))
-        XCTAssertTrue(Converters.toHCL(ast).contains("region {"))
+        XCTAssertTrue(Converters.toYAML(ast).contains("regions:"))
+        XCTAssertTrue(Converters.toTOML(ast).contains("[config.regions.us]"))
+        XCTAssertTrue(Converters.toHCL(ast).contains("regions {"))
     }
 
     func testStrictEdges() {

@@ -62,8 +62,8 @@ Projection result is JSON-like object/array/scalar.
 
 ### 4.1 Root
 
-- One root block: result is root block body.
-- Multiple root blocks: result is object keyed by root block name.
+- Root projection is always object keyed by root block name.
+- Root named block uses normalized base key and argument map.
 
 ### 4.2 Dotted Keys
 
@@ -78,7 +78,7 @@ Projection result is JSON-like object/array/scalar.
 `region "us" do ... end` MUST project as:
 
 ```json
-{ "region": { "us": { ... } } }
+{ "regions": { "us": { ... } } }
 ```
 
 Example:
@@ -86,13 +86,13 @@ Example:
 ```rcl
 config do
   region "us" do
-    name = "My name"
+    name = "My Name"
   end
 end
 ```
 
 ```json
-{ "region": { "us": { "name": "My name" } } }
+{ "config": { "regions": { "us": { "name": "My Name" } } } }
 ```
 
 ### 4.4 Duplicate/Conflict Policy

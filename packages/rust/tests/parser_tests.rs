@@ -55,18 +55,21 @@ fn named_block_and_conversion() {
     ].join("\n");
     let doc = parse(&src).expect("parse");
     let obj = to_object(&doc);
-    let region = obj.get("region").expect("region");
-    let us_name = match region {
-        rcl_parser::convert::Value::O(map) => match map.get("us").expect("us") {
-            rcl_parser::convert::Value::O(us) => us.get("name").expect("name"),
-            _ => panic!("us map expected"),
+    let config = obj.get("config").expect("config");
+    let us_name = match config {
+        rcl_parser::convert::Value::O(map) => match map.get("regions").expect("regions") {
+            rcl_parser::convert::Value::O(regions) => match regions.get("us").expect("us") {
+                rcl_parser::convert::Value::O(us) => us.get("name").expect("name"),
+                _ => panic!("us map expected"),
+            },
+            _ => panic!("regions map expected"),
         },
-        _ => panic!("region map expected"),
+        _ => panic!("config map expected"),
     };
     assert_eq!(us_name, &rcl_parser::convert::Value::S("My name".into()));
-    assert!(to_yaml(&doc).contains("region:"));
-    assert!(to_toml(&doc).contains("[region.us]"));
-    assert!(to_hcl(&doc).contains("region {"));
+    assert!(to_yaml(&doc).contains("regions:"));
+    assert!(to_toml(&doc).contains("[config.regions.us]"));
+    assert!(to_hcl(&doc).contains("regions {"));
 }
 
 #[test]

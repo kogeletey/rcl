@@ -24,10 +24,12 @@ func TestNamedBlockObjectAndConversion(t *testing.T) {
 	doc, err := Parse(src)
 	if err != nil { t.Fatalf("parse error: %v", err) }
 	obj := ToObject(doc)
-	region, ok := obj["region"].(map[string]any)
-	if !ok { t.Fatalf("region map missing") }
-	us, ok := region["us"].(map[string]any)
-	if !ok || us["name"] != "My name" { t.Fatalf("region.us.name mismatch") }
+	config, ok := obj["config"].(map[string]any)
+	if !ok { t.Fatalf("config map missing") }
+	regions, ok := config["regions"].(map[string]any)
+	if !ok { t.Fatalf("regions map missing") }
+	us, ok := regions["us"].(map[string]any)
+	if !ok || us["name"] != "My name" { t.Fatalf("config.regions.us.name mismatch") }
 	yaml, _ := ToYAML(doc)
 	toml, _ := ToTOML(doc)
 	hcl, _ := ToHCL(doc)

@@ -40,7 +40,7 @@ function blockToObject(block: BlockNode): { [k: string]: V } {
   }
 
   for (const child of children.filter((c) => c.argument !== undefined)) {
-    const base = child.name;
+    const base = namedBase(child.name);
     const arg = child.argument as string;
     const branch = result[base];
     const parent = branch && typeof branch === "object" && !Array.isArray(branch) ? (branch as { [k: string]: V }) : {};
@@ -66,11 +66,15 @@ function insertPath(target: { [k: string]: V }, key: string, value: V): void {
 }
 
 export function toObject(document: DocumentNode): { [k: string]: V } {
-  if (document.blocks.length === 1) return blockToObject(document.blocks[0]!);
   const out: { [k: string]: V } = {};
-  for (const block of document.blocks) out[block.name] = blockToObject(block);
+  for (const block of document.blocks) {
+    if (block.argument !== undefined) out[namedBase(block.name)] = { [block.argument]: blockToObject(block) };
+    else out[block.name] = blockToObject(block);
+  }
   return out;
 }
+
+function namedBase(name: string): string { return name === "region" ? "regions" : name; }
 
 function esc(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\t/g, "\\t");

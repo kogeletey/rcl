@@ -45,7 +45,7 @@ class ParserTest {
   }
 
   @Test
-  fun namedBlockToRegionArgAndConverters() {
+  fun namedBlockToConfigRegionsArgAndConverters() {
     val source = """
       config do
         region "us" do
@@ -55,12 +55,13 @@ class ParserTest {
     """.trimIndent()
     val ast = Parser.parse(source)
     val obj = Converters.toObject(ast)
-    val region = obj["region"] as Map<*, *>
-    val us = region["us"] as Map<*, *>
+    val config = obj["config"] as Map<*, *>
+    val regions = config["regions"] as Map<*, *>
+    val us = regions["us"] as Map<*, *>
     assertEquals("My name", us["name"])
-    assertTrue(Converters.toYaml(ast).contains("region:"))
-    assertTrue(Converters.toToml(ast).contains("[region.us]"))
-    assertTrue(Converters.toHcl(ast).contains("region {"))
+    assertTrue(Converters.toYaml(ast).contains("regions:"))
+    assertTrue(Converters.toToml(ast).contains("[config.regions.us]"))
+    assertTrue(Converters.toHcl(ast).contains("regions {"))
   }
 
   @Test

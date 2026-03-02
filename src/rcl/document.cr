@@ -80,11 +80,11 @@ module RCL
     def to_h : Hash(String, RCL::Value)
       result = {} of String => RCL::Value
       @blocks.each do |block|
-        result[block.name] = block_to_h(block)
-      end
-
-      if @blocks.size == 1
-        return block_to_h(@blocks.first)
+        if arg = block.argument
+          result[named_base(block.name)] = {arg => block_to_h(block)} of String => RCL::Value
+        else
+          result[block.name] = block_to_h(block)
+        end
       end
 
       result
@@ -123,7 +123,7 @@ module RCL
       end
 
       named_children.each do |child|
-        base = child.name
+        base = named_base(child.name)
         arg = child.argument.not_nil!
         branch = result[base]?
         branch_h = branch.is_a?(Hash(String, RCL::Value)) ? branch : ({} of String => RCL::Value)
@@ -184,6 +184,10 @@ module RCL
       branch = existing.as?(Hash(String, RCL::Value)) || ({} of String => RCL::Value)
       insert_key_path!(branch, parts[1..].join("."), value)
       target[head] = branch
+    end
+
+    private def named_base(name : String) : String
+      name == "region" ? "regions" : name
     end
   end
 end
