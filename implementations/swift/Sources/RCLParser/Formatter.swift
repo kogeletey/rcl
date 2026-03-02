@@ -1,3 +1,5 @@
+import Foundation
+
 public enum Formatter {
     public static func format(_ doc: DocumentNode) -> String {
         doc.blocks.map { formatBlock($0, indent: 0) }.joined(separator: "\n\n")

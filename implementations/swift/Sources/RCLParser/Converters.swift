@@ -1,3 +1,5 @@
+import Foundation
+
 public enum Converters {
     public static func toObject(_ doc: DocumentNode) -> [String: Any] {
         var out: [String: Any] = [:]
