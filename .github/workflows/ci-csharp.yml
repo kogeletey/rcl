@@ -15,5 +15,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update
       - run: sudo apt-get install -y mono-mcs
-      - run: mcs -out:test_bin src/RCL.cs test/Test.cs
+      - run: mcs -out:test_bin src/*.cs test/Test.cs
       - run: mono test_bin

@@ -13,5 +13,5 @@ jobs:
         working-directory: implementations/cpp
     steps:
       - uses: actions/checkout@v4
-      - run: g++ -std=c++17 -Wall -Wextra -O2 rcl.cpp test.cpp -o test_bin
+      - run: g++ -std=c++17 -Wall -Wextra -O2 rcl.cpp rcl_ast.cpp rcl_lexer.cpp rcl_parser.cpp rcl_project.cpp rcl_format.cpp rcl_convert.cpp test.cpp -o test_bin
       - run: ./test_bin

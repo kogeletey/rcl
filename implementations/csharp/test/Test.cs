@@ -1,11 +1,42 @@
 using System;
+using System.Collections.Generic;
 using RCLImpl;
+
 class Test {
   static int Main() {
-    var src = "config do\n  region \"us\" do\n    name = \"My Name\"\n  end\nend\n";
-    if (!RCL.ToTOML(src).Contains("[config.regions.us]")) return 1;
-    var ok = false;
-    try { RCL.Parse("x do\n  name = value\nend\n"); } catch { ok = true; }
-    return ok ? 0 : 1;
+    var src = "root do\n  service \"api\" do\n    title = \"My Name\"\n    ok = true\n    nums = [1, -2, 3.5]\n  end\nend\n";
+    var ast = RCL.Parse(src);
+    if (ast.Kind != "document") return 1;
+    var outp = RCL.Format(ast);
+    if (RCL.Parse(outp).Blocks.Count != ast.Blocks.Count) return 1;
+
+    var obj = RCL.ToObject(ast);
+    var root = (Dictionary<string, object>)obj["root"];
+    var services = (Dictionary<string, object>)root["services"];
+    var api = (Dictionary<string, object>)services["api"];
+    if ((string)api["title"] != "My Name") return 1;
+    if (!RCL.ToTOML(ast).Contains("[root.services.api]")) return 1;
+    if (!RCL.ToYAML(ast).Contains("services:")) return 1;
+    if (!RCL.ToHCL(ast).Contains("services {")) return 1;
+
+    if (!Err("x do\n  name = value\nend\n", "invalid bare identifier value")) return 1;
+    if (!Err("x do\n  arr = [1,]\nend\n", "trailing comma in array")) return 1;
+    if (!Err("x do\n  a = 1\n  a = 2\nend\n", "duplicate key")) return 1;
+    if (!Err("x do\n  a = 1\n  a.b = 2\nend\n", "key-path prefix conflict")) return 1;
+    if (!Err("x do\n  a.b = 1\n  a = 2\nend\n", "key-path prefix conflict")) return 1;
+    if (!Err("x do\n  s = \"bad\\q\"\nend\n", "invalid escape")) return 1;
+    if (!Err("x do\n  s = \"ok\"\n", "missing end")) return 1;
+    if (!Err("x do\n  a = [1,2\nend\n", "missing ]")) return 1;
+    if (!Err("x do\n  s = \"bad\nend\n", "unterminated string")) return 1;
+    if (!Err("x do\n  s = 'bad'\nend\n", "single-quoted string usage")) return 1;
+    if (!Err("x do\n  @ = 1\nend\n", "unexpected character")) return 1;
+
+    Console.WriteLine("ok");
+    return 0;
+  }
+
+  static bool Err(string src, string msg) {
+    try { RCL.Parse(src); return false; }
+    catch (Exception ex) { return ex.Message.Contains(msg) && ex.Message.Contains("line"); }
   }
 }

@@ -122,7 +122,7 @@ module RCL
     end
 
     def named_base(name)
-      name == "region" ? "regions" : name
+      name.end_with?("s") ? name : "#{name}s"
     end
   end
 end

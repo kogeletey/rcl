@@ -123,7 +123,7 @@ let rec insert_path m parts v = match parts with
   | [k] -> if SM.mem k m then failwith ("duplicate key '"^k^"'") else SM.add k v m
   | k::rest -> let child = match SM.find_opt k m with None->VO SM.empty | Some (VO o)->VO o | _->failwith ("key conflict at '"^k^"'") in
     let VO o = child in SM.add k (VO (insert_path o rest v)) m
-let named_base n = if n="region" then "regions" else n
+let named_base n = if String.length n > 0 && n.[String.length n - 1] = 's' then n else n ^ "s"
 let rec block_obj b =
   let m = List.fold_left (fun a (k,v)-> insert_path a (split_on_char '.' k) (node_val v)) SM.empty b.props in
   let m =

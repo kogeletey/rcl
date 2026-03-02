@@ -18,5 +18,5 @@ jobs:
           distribution: temurin
           java-version: "17"
       - run: mkdir -p out
-      - run: javac -d out src/main/java/io/rcl/RCL.java src/test/java/io/rcl/RCLTest.java
+      - run: javac -d out src/main/java/io/rcl/*.java src/test/java/io/rcl/RCLTest.java
       - run: java -cp out io.rcl.RCLTest

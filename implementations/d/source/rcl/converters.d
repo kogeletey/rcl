@@ -7,7 +7,7 @@ import std.json;
 import rcl.ast;
 import std.string : split, replace;
 
-string namedBase(string n) { return n == "region" ? "regions" : n; }
+string namedBase(string n) { return n.length > 0 && n[$ - 1] == 's' ? n : n ~ "s"; }
 
 JSONValue nodeToVal(AstNode n) {
   final switch (n.kind) {

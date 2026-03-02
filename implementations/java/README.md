@@ -1,5 +1,14 @@
 # rcl-java
 
-Java implementation for RCL native implementation.
+Native Java implementation of RCL v1.
 
-API: `parse`, `format`, `toObject`, `toYAML`, `toTOML`, `toHCL`.
+## API
+
+- `RCL.parse(String)` -> `DocumentNode`
+- `RCL.format(String|DocumentNode)`
+- `RCL.toObject(String|DocumentNode)`
+- `RCL.toYAML(String|DocumentNode)`
+- `RCL.toTOML(String|DocumentNode)`
+- `RCL.toHCL(String|DocumentNode)`
+
+Parser validates full spec including dotted keys, named blocks, key conflicts, escapes and line/column errors.

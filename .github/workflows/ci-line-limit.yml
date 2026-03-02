@@ -21,7 +21,7 @@ jobs:
               bad=1
             fi
           done < <(find . -type f \
-            \( -name '*.cr' -o -name '*.ts' -o -name '*.go' -o -name '*.kt' -o -name '*.swift' -o -name '*.rs' -o -name '*.rb' -o -name '*.yml' -o -name '*.yaml' -o -name '*.toml' -o -name '*.hcl' -o -name '*.rcl' -o -name '*.php' -o -name '*.ex' -o -name '*.ml' -o -name '*.jl' -o -name '*.c' -o -name '*.cpp' -o -name '*.zig' -o -name '*.java' -o -name '*.d' -o -name '*.cs' -o -name '*.lua' \) \
+            \( -name '*.cr' -o -name '*.ts' -o -name '*.go' -o -name '*.kt' -o -name '*.swift' -o -name '*.rs' -o -name '*.rb' -o -name '*.yml' -o -name '*.yaml' -o -name '*.toml' -o -name '*.hcl' -o -name '*.rcl' -o -name '*.php' -o -name '*.ex' -o -name '*.ml' -o -name '*.jl' -o -name '*.c' -o -name '*.cpp' -o -name '*.zig' -o -name '*.java' -o -name '*.d' -o -name '*.cs' -o -name '*.lua' -o -name '*.dart' \) \
             ! -path './.git/*' \
             ! -path './.github/workflows/*')
           if [ "$bad" -ne 0 ]; then

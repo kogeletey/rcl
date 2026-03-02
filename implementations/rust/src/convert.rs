@@ -133,5 +133,5 @@ fn insert_path(target: &mut BTreeMap<String, Value>, key: &str, value: Value) {
 }
 
 fn named_base(name: &str) -> String {
-    if name == "region" { "regions".to_string() } else { name.to_string() }
+    if name.ends_with('s') { name.to_string() } else { format!("{name}s") }
 }

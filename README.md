@@ -126,6 +126,7 @@ Multi-language workspace is available under `implementations/`.
 - `implementations/d` - D parser + formatter + converters
 - `implementations/csharp` - C# parser + formatter + converters
 - `implementations/lua` - Lua parser + formatter + converters
+- `implementations/dart` - Dart parser + formatter + converters
 
 ## License
 

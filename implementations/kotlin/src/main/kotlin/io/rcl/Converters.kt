@@ -121,5 +121,5 @@ object Converters {
     target[head] = branch
   }
 
-  private fun namedBase(name: String): String = if (name == "region") "regions" else name
+  private fun namedBase(name: String): String = if (name.endsWith("s")) name else "${name}s"
 }

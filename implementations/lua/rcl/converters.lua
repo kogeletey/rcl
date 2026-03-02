@@ -1,4 +1,4 @@
-local function named_base(name) return name == "region" and "regions" or name end
+local function named_base(name) return name:sub(-1) == "s" and name or (name .. "s") end
 
 local function esc(s)
   return s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\t", "\\t")

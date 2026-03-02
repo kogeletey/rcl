@@ -1,0 +1,10 @@
+name: rcl
+description: RCL parser and converters for Dart
+version: 0.1.0
+repository: https://github.com/kogeletey/rcl
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dev_dependencies:
+  test: ^1.25.8

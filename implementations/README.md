@@ -22,3 +22,4 @@ Status matrix:
 - `d`: parse + format + convert + tests (spec conformance + edge cases)
 - `csharp`: parse + format + convert + tests (spec conformance + edge cases)
 - `lua`: parse + format + convert + tests (spec conformance + edge cases)
+- `dart`: parse + format + convert + tests (spec conformance + edge cases)

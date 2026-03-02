@@ -74,7 +74,7 @@ export function toObject(document: DocumentNode): { [k: string]: V } {
   return out;
 }
 
-function namedBase(name: string): string { return name === "region" ? "regions" : name; }
+function namedBase(name: string): string { return name.endsWith("s") ? name : `${name}s`; }
 
 function esc(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\t/g, "\\t");

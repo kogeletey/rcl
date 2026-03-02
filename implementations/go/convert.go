@@ -172,7 +172,7 @@ func scalar(v any) string {
 }
 
 func reflectInt64(v any) int64 { switch n := v.(type) { case int: return int64(n); case int32: return int64(n); case int64: return n; default: return 0 } }
-func namedBase(name string) string { if name == "region" { return "regions" }; return name }
+func namedBase(name string) string { if strings.HasSuffix(name, "s") { return name }; return name + "s" }
 
 func insertPath(target map[string]any, key string, value any) {
 	parts := strings.Split(key, ".")

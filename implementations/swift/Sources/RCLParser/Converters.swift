@@ -129,5 +129,5 @@ public enum Converters {
         target[head] = branch
     }
 
-    private static func namedBase(_ name: String) -> String { name == "region" ? "regions" : name }
+    private static func namedBase(_ name: String) -> String { name.hasSuffix("s") ? name : "\(name)s" }
 }

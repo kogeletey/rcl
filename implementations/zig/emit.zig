@@ -3,7 +3,10 @@ const P = @import("parser.zig");
 
 pub const Node = union(enum) { obj: std.StringArrayHashMap(Node), arr: std.ArrayList(Node), str: []const u8, num: []const u8, bool: bool };
 
-fn base(name: []const u8) []const u8 { return if (std.mem.eql(u8, name, "region")) "regions" else name; }
+fn base(name: []const u8, a: std.mem.Allocator) ![]const u8 {
+    if (name.len > 0 and name[name.len - 1] == 's') return name;
+    return try std.fmt.allocPrint(a, "{s}s", .{name});
+}
 fn nodeOf(v: P.Value, a: std.mem.Allocator) !Node {
     return switch (v) {
         .str => |s| .{ .str = s }, .num => |n| .{ .num = n }, .bool => |b| .{ .bool = b },
@@ -22,7 +25,7 @@ fn projBlock(b: P.Block, a: std.mem.Allocator) !Node {
     for (b.props.items) |p| try insertPath(&n, p.key, try nodeOf(p.val, a), a);
     for (b.kids.items) |k| if (k.arg == null) try n.obj.put(k.name, try projBlock(k, a));
     for (b.kids.items) |k| if (k.arg != null) {
-        const bn = base(k.name);
+        const bn = try base(k.name, a);
         if (n.obj.getPtr(bn) == null) try n.obj.put(bn, .{ .obj = std.StringArrayHashMap(Node).init(a) });
         try n.obj.getPtr(bn).?.obj.put(k.arg.?, try projBlock(k, a));
     };
@@ -30,7 +33,13 @@ fn projBlock(b: P.Block, a: std.mem.Allocator) !Node {
 }
 pub fn project(d: P.Doc, a: std.mem.Allocator) !Node {
     var root = Node{ .obj = std.StringArrayHashMap(Node).init(a) };
-    for (d.blocks.items) |b| try root.obj.put(b.name, try projBlock(b, a));
+    for (d.blocks.items) |b| {
+        if (b.arg) |arg| {
+            const bn = try base(b.name, a);
+            if (root.obj.getPtr(bn) == null) try root.obj.put(bn, .{ .obj = std.StringArrayHashMap(Node).init(a) });
+            try root.obj.getPtr(bn).?.obj.put(arg, try projBlock(b, a));
+        } else try root.obj.put(b.name, try projBlock(b, a));
+    }
     return root;
 }
 

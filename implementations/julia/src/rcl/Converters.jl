@@ -1,4 +1,4 @@
-named_base(name::String) = name == "region" ? "regions" : name
+named_base(name::String) = endswith(name, "s") ? name : string(name, "s")
 node_value(node) = node["kind"] == "array" ? map(node_value, node["elements"]) : node["value"]
 
 function insert_path!(dst::Dict{String,Any}, key::String, value)

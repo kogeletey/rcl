@@ -1,10 +1,38 @@
 <?php
 require __DIR__ . '/../src/RCL.php';
-$src = "config do\n  region \"us\" do\n    name = \"My Name\"\n  end\nend\n";
-$o = RCL::toObject($src);
-if ($o['config']['regions']['us']['name'] !== 'My Name') { fwrite(STDERR, "projection failed\n"); exit(1); }
-if (strpos(RCL::toTOML($src), '[config.regions.us]') === false) { fwrite(STDERR, "toml failed\n"); exit(1); }
-$bad = "x do\n  name = value\nend\n";
-$ok = false; try { RCL::parse($bad); } catch (Throwable $e) { $ok = true; }
-if (!$ok) { fwrite(STDERR, "edge failed\n"); exit(1); }
+
+function ok(bool $v, string $m): void { if (!$v) { fwrite(STDERR, "$m\n"); exit(1); } }
+function fails(string $src, string $needle): void {
+  $hit = false;
+  try { RCL::parse($src); } catch (Throwable $e) { $hit = str_contains($e->getMessage(), $needle) && str_contains($e->getMessage(), 'line'); }
+  ok($hit, "expected failure: $needle");
+}
+
+$src = "root do\n  widget \"blue\" do\n    title = \"My Name\"\n    enabled = true\n    nums = [1, -2, 3.5]\n  end\nend\n";
+$ast = RCL::parse($src);
+ok($ast['type'] === 'Document', 'ast type');
+ok(RCL::format($src) === $src, 'format canonical');
+$obj = RCL::toObject($src);
+ok($obj['root']['widgets']['blue']['title'] === 'My Name', 'generic named block');
+ok($obj['root']['widgets']['blue']['enabled'] === true, 'bool projection');
+ok(RCL::toTOML($src) !== '', 'toml output');
+ok(RCL::toYAML($src) !== '', 'yaml output');
+ok(RCL::toHCL($src) !== '', 'hcl output');
+
+$src2 = "env \"prod\" do\n  region \"us\" do\n    a.b = 1\n  end\nend\n";
+$o2 = RCL::toObject($src2);
+ok($o2['envs']['prod']['regions']['us']['a']['b'] === 1, 'root named block');
+
+fails("x do\n  name = value\nend\n", 'invalid bare identifier value');
+fails("x do\n  arr = [1,]\nend\n", 'trailing comma in array');
+fails("x do\n  a = 1\n  a = 2\nend\n", 'duplicate or conflicting key path');
+fails("x do\n  a = 1\n  a.b = 2\nend\n", 'duplicate or conflicting key path');
+fails("x do\n  a.b = 1\n  a = 2\nend\n", 'duplicate or conflicting key path');
+fails("x do\n  s = \"bad\\q\"\nend\n", 'invalid escape');
+fails("x do\n  s = \"ok\"\n", 'missing end');
+fails("x do\n  a = [1,2\nend\n", 'missing ]');
+fails("x do\n  s = \"bad\nend\n", 'unterminated string');
+fails("x do\n  s = 'bad'\nend\n", 'single-quoted string usage');
+fails("x do\n  @ = 1\nend\n", 'unexpected character');
+
 echo "ok\n";
