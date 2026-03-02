@@ -61,7 +61,8 @@ export class Parser {
   private parsePropertyKey(): string {
     let key = this.current.value;
     this.eat(TokenType.Identifier);
-    while (this.current.type === TokenType.Dot) {
+    for (;;) {
+      if (this.current.type !== TokenType.Dot) break;
       this.eat(TokenType.Dot);
       if (this.current.type !== TokenType.Identifier) throw this.err("expected identifier after dot");
       key += `.${this.current.value}`;
@@ -92,7 +93,8 @@ export class Parser {
     const elements: AstNode[] = [];
     if (this.current.type !== TokenType.RBracket) {
       elements.push(this.parseValue());
-      while (this.current.type === TokenType.Comma) {
+      for (;;) {
+        if (this.current.type !== TokenType.Comma) break;
         this.eat(TokenType.Comma);
         if (this.current.type === TokenType.RBracket) throw this.err("trailing comma in array");
         elements.push(this.parseValue());

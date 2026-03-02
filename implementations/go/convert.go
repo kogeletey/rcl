@@ -141,14 +141,16 @@ func emitHCL(v any, indent int) string {
 	obj, ok := v.(map[string]any)
 	if !ok { return pad + scalar(v) }
 	lines := []string{}
-	for _, k := range sortedKeys(obj) {
-		item := obj[k]
-		if child, ok := item.(map[string]any); ok {
-			lines = append(lines, pad+k+" {", emitHCL(child, indent+1), pad+"}")
-		} else lines = append(lines, pad+k+" = "+scalar(item))
+		for _, k := range sortedKeys(obj) {
+			item := obj[k]
+			if child, ok := item.(map[string]any); ok {
+				lines = append(lines, pad+k+" {", emitHCL(child, indent+1), pad+"}")
+			} else {
+				lines = append(lines, pad+k+" = "+scalar(item))
+			}
+		}
+		return strings.Join(lines, "\n")
 	}
-	return strings.Join(lines, "\n")
-}
 
 func sortedKeys(m map[string]any) []string { k := make([]string, 0, len(m)); for x := range m { k = append(k, x) }; sort.Strings(k); return k }
 func scalar(v any) string {
