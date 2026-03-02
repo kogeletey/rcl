@@ -17,11 +17,16 @@ jobs:
         working-directory: implementations/d
     steps:
       - uses: actions/checkout@v4
-      - uses: dlang-community/setup-dlang@v2
+      - if: runner.os == 'Windows'
+        uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: dmd-latest
+      - if: runner.os != 'Windows'
+        uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-latest
       - if: runner.os == 'Windows'
-        run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin.exe
+        run: dmd -i -Isource source/rcl/package.d test/test.d -oftest_bin.exe
       - if: runner.os != 'Windows'
         run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
       - if: runner.os == 'Windows'
