@@ -1,0 +1,11 @@
+# basic all features
+config do
+  enabled = true
+  port = 8080
+  ratio = 3.14
+  tls.cert_path = "/etc/cert.pem"
+  names = ["a", "b", 1, false]
+  region "us" do
+    name = "My Name"
+  end
+end

@@ -1,0 +1,21 @@
+do = 'implement'
+end = 'hello'
+a do
+  b do
+    c do
+      d do
+        e do
+          f do
+            g do
+              h do
+                i do
+                  j = 1
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
