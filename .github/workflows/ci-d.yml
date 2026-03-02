@@ -30,11 +30,17 @@ jobs:
         with:
           compiler: ldc-latest
       - if: runner.os == 'Windows'
-        run: dmd -i -Isource source/rcl/package.d test/test.d -of=test_bin.exe
+        run: dmd -i -Isource source/rcl/package.d test/test.d -oftest_bin.exe
       - if: runner.os != 'Windows'
         run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
       - if: runner.os == 'Windows'
-        shell: cmd
-        run: test_bin.exe
+        shell: pwsh
+        run: |
+          if (-not (Test-Path .\test_bin.exe)) {
+            Write-Host "test_bin.exe not found in implementations/d"
+            Get-ChildItem -Force
+            exit 1
+          }
+          .\test_bin.exe
       - if: runner.os != 'Windows'
         run: ./test_bin
