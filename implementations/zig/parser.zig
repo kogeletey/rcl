@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const ParseError = error{ UnexpectedChar, SingleQuote, UnterminatedString, InvalidEscape, UnexpectedToken, MissingEnd, MissingRBracket, BareValue, TrailingComma, KeyConflict };
+pub const ParseError = error{ UnexpectedChar, SingleQuote, UnterminatedString, InvalidEscape, UnexpectedToken, MissingEnd, MissingRBracket, BareValue, TrailingComma, KeyConflict, OutOfMemory };
 
 pub const Value = union(enum) { str: []const u8, num: []const u8, bool: bool, arr: std.ArrayList(Value) };
 pub const Prop = struct { key: []const u8, val: Value };
