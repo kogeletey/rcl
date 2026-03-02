@@ -71,7 +71,6 @@ string scalar(JSONValue v) {
   switch (v.type) {
     case JSON_TYPE.STRING: return "\"" ~ esc(v.str) ~ "\"";
     case JSON_TYPE.INTEGER: return v.integer.to!string;
-    case JSON_TYPE.UINTEGER: return v.uinteger.to!string;
     case JSON_TYPE.FLOAT: return v.floating.to!string;
     case JSON_TYPE.TRUE: return "true";
     case JSON_TYPE.FALSE: return "false";
@@ -109,7 +108,7 @@ string emitTOML(JSONValue root) {
     foreach (k; obj.object.keys.array.sort) {
       auto x = obj.object[k]; if (x.type != JSON_TYPE.OBJECT) continue;
       auto sec = prefix.length ? prefix ~ "." ~ k : k;
-      if (out.length) out ~= "";
+      if (out.length > 0) out ~= "";
       out ~= "[" ~ sec ~ "]"; walk(x, sec);
     }
   }
