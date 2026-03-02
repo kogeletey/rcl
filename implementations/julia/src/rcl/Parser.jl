@@ -46,7 +46,7 @@ function parse_value!(p::Parser)
   if t.typ == :STRING; eat!(p, :STRING); return Dict("kind"=>"string", "value"=>t.value) end
   if t.typ == :NUMBER
     eat!(p, :NUMBER)
-    n = occursin('.', t.value) ? parse(Float64, t.value) : parse(Int64, t.value)
+    n = occursin('.', t.value) ? Base.parse(Float64, t.value) : Base.parse(Int64, t.value)
     return Dict("kind"=>"number", "value"=>n)
   end
   if t.typ == :IDENT
