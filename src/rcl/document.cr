@@ -2,6 +2,7 @@
 # Represents a parsed RCL configuration document
 
 require "./ast"
+require "json"
 
 module RCL
   class Document
@@ -103,6 +104,18 @@ module RCL
       end
 
       result
+    end
+
+    # Convert to a stable AST hash contract
+    def to_ast_h : Hash(String, RCL::Value)
+      {
+        "kind"   => "document",
+        "blocks" => @blocks.map(&.to_ast_h),
+      }
+    end
+
+    def to_json(json : JSON::Builder) : Nil
+      to_ast_h.to_json(json)
     end
 
     private def block_to_h(block : BlockNode) : Hash(String, RCL::Value)

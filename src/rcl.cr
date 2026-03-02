@@ -1,7 +1,3 @@
-# RCL - Ray Configuration Language
-# A TOML-like configuration language parser
-#
-# Copyright (c) 2024 Your Name
 # Licensed under MIT License
 #
 # Syntax:
@@ -10,17 +6,17 @@
 #   number = 12345
 #   enabled = true
 #   array = [1, 2, 3]
-#   
+#
 #   block do
 #     nested = "value"
 #   end
 #
 # Usage:
 #   require "rcl"
-#   
+#
 #   doc = RCL.parse_file("config.rcl")
 #   doc.get_string("block/nested")
-#   
+#
 #   # Register custom block handlers
 #   RCL::Blocks.register("server") do |block|
 #     {:ok, {address: block["address"]}.named_tuple}
@@ -32,9 +28,15 @@ require "./rcl/ast"
 require "./rcl/lexer"
 require "./rcl/parser"
 require "./rcl/document"
+require "./rcl/formatter"
 require "./rcl/blocks"
 
 module RCL
+  # Parse RCL file and return Document
+  def self.parse(path : String) : Document
+    parse_file(path)
+  end
+
   # Parse RCL file and return Document
   def self.parse_file(path : String) : Document
     content = File.read(path)
@@ -43,9 +45,7 @@ module RCL
 
   # Parse RCL string and return Document
   def self.parse_string(content : String) : Document
-    lexer = RCL::Lexer.new(content)
-    parser = RCL::Parser.new(lexer)
-    parser.parse
+    RCL::Parser.parse(content)
   end
 
   # Parse and convert to Hash
@@ -56,5 +56,10 @@ module RCL
   # Parse string and convert to Hash
   def self.parse_string_to_h(content : String) : Hash(String, RCL::Value)
     parse_string(content).to_h
+  end
+
+  # Format parsed document into canonical RCL source text
+  def self.format(document : Document) : String
+    RCL::Formatter.format(document)
   end
 end

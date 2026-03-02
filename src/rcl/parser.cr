@@ -13,6 +13,11 @@ module RCL
       @current_token = @lexer.next_token
     end
 
+    def self.parse(content : String) : Document
+      lexer = RCL::Lexer.new(content)
+      new(lexer).parse
+    end
+
     # Parse input and return Document
     def parse : Document
       blocks = [] of BlockNode
