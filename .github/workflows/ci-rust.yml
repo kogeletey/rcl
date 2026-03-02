@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/rust/**'
+      - '.github/workflows/ci-rust.yml'
+      - 'e2e/**'
 
 jobs:
   rust:

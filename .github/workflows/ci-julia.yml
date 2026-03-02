@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/julia/**'
+      - '.github/workflows/ci-julia.yml'
+      - 'e2e/**'
 
 jobs:
   julia:

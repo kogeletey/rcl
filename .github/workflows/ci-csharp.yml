@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/csharp/**'
+      - '.github/workflows/ci-csharp.yml'
+      - 'e2e/**'
 
 jobs:
   csharp:

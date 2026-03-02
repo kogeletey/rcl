@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/kotlin/**'
+      - '.github/workflows/ci-kotlin.yml'
+      - 'e2e/**'
 
 jobs:
   kotlin:

@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/crystal/**'
+      - '.github/workflows/ci-crystal.yml'
+      - 'e2e/**'
 
 jobs:
   crystal:

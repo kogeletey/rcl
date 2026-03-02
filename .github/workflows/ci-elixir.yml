@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/elixir/**'
+      - '.github/workflows/ci-elixir.yml'
+      - 'e2e/**'
 
 jobs:
   elixir:
