@@ -33,7 +33,7 @@ render_with_crystal() {
       STDERR.puts "unsupported format: #{ARGV[0]}"
       exit 2
     end
-  ' "$fmt" "$src"
+  ' -- "$fmt" "$src"
 }
 
 compare_one() {
@@ -52,6 +52,7 @@ compare_one() {
 
 FAILED=0
 
+# Validate fixture folders with golden files (format equivalence).
 while IFS= read -r rcl_file; do
   base="${rcl_file%.rcl}"
   for fmt in json toml yml hcl; do
@@ -64,9 +65,24 @@ while IFS= read -r rcl_file; do
   done
 done < <(find "$ROOT_DIR/e2e" -mindepth 2 -maxdepth 2 -type f -name '*.rcl' ! -path '*/cases/*' | sort)
 
+# Validate parser cases.
+while IFS= read -r rcl_file; do
+  if ! crystal eval 'require "./implementations/crystal/src/rcl"; RCL.parse_string(File.read(ARGV[0]))' -- "$rcl_file" >/dev/null; then
+    echo "Expected valid case to parse, but failed: $rcl_file" >&2
+    FAILED=1
+  fi
+done < <(find "$ROOT_DIR/e2e/cases/valid" -type f -name '*.rcl' | sort)
+
+while IFS= read -r rcl_file; do
+  if crystal eval 'require "./implementations/crystal/src/rcl"; RCL.parse_string(File.read(ARGV[0]))' -- "$rcl_file" >/dev/null 2>&1; then
+    echo "Expected invalid case to fail parsing, but succeeded: $rcl_file" >&2
+    FAILED=1
+  fi
+done < <(find "$ROOT_DIR/e2e/cases/invalid" -type f -name '*.rcl' | sort)
+
 if [ "$FAILED" -ne 0 ]; then
   echo "Golden verification failed." >&2
   exit 1
 fi
 
-echo "Golden verification passed."
+echo "Golden and cases verification passed."

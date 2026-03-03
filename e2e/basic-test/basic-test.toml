@@ -1,7 +1,3 @@
-region = "us"
-kube = "rnates"
-port = 3000
-
 [config]
 enabled = true
 port = 8080
@@ -11,5 +7,5 @@ names = ["a", "b", 1, false]
 [config.tls]
 cert_path = "/etc/cert.pem"
 
-[config.example.block]
+[config.regions.us]
 name = "My Name"
