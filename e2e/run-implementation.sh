@@ -10,6 +10,18 @@ if [ -z "$IMPL" ]; then
   exit 2
 fi
 
+if [ "$IMPL" = "allavailable" ]; then
+  mapfile -t ALL_IMPLS < <(find "$ROOT_DIR/implementations" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+  if [ "${#ALL_IMPLS[@]}" -eq 0 ]; then
+    echo "No implementations available"
+    exit 0
+  fi
+  for impl in "${ALL_IMPLS[@]}"; do
+    bash "$ROOT_DIR/e2e/run-implementation.sh" "$impl"
+  done
+  exit 0
+fi
+
 run_impl_tests() {
   case "$IMPL" in
     c)

@@ -4,7 +4,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [ -n "${E2E_IMPL_LIST:-}" ]; then
-  IFS=',' read -r -a IMPLEMENTATIONS <<< "$E2E_IMPL_LIST"
+  IFS=',' read -r -a REQUESTED_IMPLS <<< "$E2E_IMPL_LIST"
+  if printf '%s\n' "${REQUESTED_IMPLS[@]}" | grep -qx "allavailable"; then
+    mapfile -t ALL_IMPLS < <(find "$ROOT_DIR/implementations" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+    mapfile -t IMPLEMENTATIONS < <(printf '%s\n' "${ALL_IMPLS[@]}" "${REQUESTED_IMPLS[@]}" | awk 'NF' | grep -vx "allavailable" | sort -u)
+  else
+    IMPLEMENTATIONS=("${REQUESTED_IMPLS[@]}")
+  fi
 else
   mapfile -t IMPLEMENTATIONS < <(find "$ROOT_DIR/implementations" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 fi

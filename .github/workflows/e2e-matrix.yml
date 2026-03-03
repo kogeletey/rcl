@@ -82,14 +82,11 @@ jobs:
       - if: ${{ matrix.implementation == 'crystal' }}
         uses: crystal-lang/install-crystal@v1
 
-<<<<<<< HEAD
       - if: ${{ matrix.implementation == 'csharp' }}
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-=======
->>>>>>> refs/remotes/origin/release
       - if: ${{ matrix.implementation == 'd' }}
         uses: dlang-community/setup-dlang@v2
         with:
@@ -143,12 +140,9 @@ jobs:
       - if: ${{ matrix.implementation == 'rust' }}
         uses: dtolnay/rust-toolchain@stable
 
-<<<<<<< HEAD
       - if: ${{ matrix.implementation == 'swift' }}
         uses: swift-actions/setup-swift@v2
 
-=======
->>>>>>> refs/remotes/origin/release
       - if: ${{ matrix.implementation == 'typescript' }}
         uses: actions/setup-node@v4
         with:
@@ -159,14 +153,11 @@ jobs:
         with:
           version: '0.13.0'
 
-<<<<<<< HEAD
-=======
       - if: ${{ matrix.implementation == 'csharp' && runner.os == 'Linux' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y mono-mcs
 
->>>>>>> refs/remotes/origin/release
       - name: Run implementation tests with timing
         run: bash e2e/run-implementation.sh "${{ matrix.implementation }}"
 
