@@ -41,6 +41,7 @@ jobs:
           INCLUDE=$(printf '%s\n' "$IMPLS" | jq -R -s -c '
             split("\n")
             | map(select(length > 0))
+            | sort_by(. != "crystal", .)
             | map(
                 if . == "swift" then
                   [
@@ -69,8 +70,18 @@ jobs:
           echo "matrix={\"include\":$INCLUDE}" >> "$GITHUB_OUTPUT"
           echo 'has_changes=true' >> "$GITHUB_OUTPUT"
 
-  run-e2e:
+  verify-golden-fixtures:
     needs: detect-implementations
+    if: needs.detect-implementations.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crystal-lang/install-crystal@v1
+      - name: Verify e2e golden files with crystal
+        run: bash e2e/verify-golden-with-crystal.sh
+
+  run-e2e:
+    needs: [detect-implementations, verify-golden-fixtures]
     if: needs.detect-implementations.outputs.has_changes == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -164,7 +175,7 @@ jobs:
       - name: Upload perf artifact
         uses: actions/upload-artifact@v4
         with:
-          name: perf-${{ matrix.implementation }}
+          name: perf-${{ matrix.implementation }}-${{ matrix.os }}
           path: e2e/perf/${{ matrix.implementation }}.json
 
   perf-summary:
