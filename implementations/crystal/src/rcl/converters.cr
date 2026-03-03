@@ -8,9 +8,9 @@ module RCL
 
     def self.to_toml(value : RCL::Value) : String
       root = value.is_a?(Hash(String, RCL::Value)) ? value : {"root" => value} of String => RCL::Value
-      out = [] of String
-      emit_toml_table(root, nil, out)
-      out.join("\n")
+      lines = [] of String
+      emit_toml_table(root, nil, lines)
+      lines.join("\n")
     end
 
     def self.to_hcl(value : RCL::Value) : String
@@ -48,18 +48,18 @@ module RCL
       end
     end
 
-    private def self.emit_toml_table(hash : Hash(String, RCL::Value), prefix : String?, out : Array(String))
+    private def self.emit_toml_table(hash : Hash(String, RCL::Value), prefix : String?, lines : Array(String))
       scalar_keys = hash.keys.select { |k| !hash[k].is_a?(Hash(String, RCL::Value)) }.sort
       scalar_keys.each do |key|
-        out << "#{key} = #{emit_scalar(hash[key])}"
+        lines << "#{key} = #{emit_scalar(hash[key])}"
       end
 
       table_keys = hash.keys.select { |k| hash[k].is_a?(Hash(String, RCL::Value)) }.sort
       table_keys.each do |key|
         section = prefix ? "#{prefix}.#{key}" : key
-        out << "" unless out.empty?
-        out << "[#{section}]"
-        emit_toml_table(hash[key].as(Hash(String, RCL::Value)), section, out)
+        lines << "" unless lines.empty?
+        lines << "[#{section}]"
+        emit_toml_table(hash[key].as(Hash(String, RCL::Value)), section, lines)
       end
     end
 
