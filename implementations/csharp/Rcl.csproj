@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>Rcl.Parser</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>RCL Contributors</Authors>
+    <Description>RCL parser and formatter for C#</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/kogeletey/rcl</RepositoryUrl>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src/**/*.cs" />
+  </ItemGroup>
+</Project>

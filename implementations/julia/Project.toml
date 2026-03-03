@@ -1,0 +1,7 @@
+name = "RCL"
+uuid = "f9f31d79-5049-4af5-9d4e-8bba95d8c4f6"
+authors = ["RCL Contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.10"

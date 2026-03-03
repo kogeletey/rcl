@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/lua/**'
+      - '.github/workflows/ci-lua.yml'
+      - 'e2e/**'
 
 jobs:
   lua:

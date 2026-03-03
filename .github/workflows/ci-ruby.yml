@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/ruby/**'
+      - '.github/workflows/ci-ruby.yml'
+      - 'e2e/**'
 
 jobs:
   ruby:

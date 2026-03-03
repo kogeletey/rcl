@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/d/**'
+      - '.github/workflows/ci-d.yml'
+      - 'e2e/**'
 
 jobs:
   d:
@@ -26,10 +30,24 @@ jobs:
         with:
           compiler: ldc-latest
       - if: runner.os == 'Windows'
-        run: dmd -i -Isource source/rcl/package.d test/test.d -oftest_bin.exe
+        run: dmd -i -Isource source/rcl/package.d test/test.d
       - if: runner.os != 'Windows'
         run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
       - if: runner.os == 'Windows'
-        run: .\\test_bin.exe
+        shell: pwsh
+        run: |
+          $exes = Get-ChildItem -File -Filter *.exe
+          if ($exes.Count -eq 0) {
+            Write-Host "No .exe produced in implementations/d"
+            Get-ChildItem -Force
+            exit 1
+          }
+          if ($exes.Count -gt 1) {
+            Write-Host "Multiple .exe files found, cannot choose automatically:"
+            $exes | ForEach-Object { Write-Host $_.Name }
+            exit 1
+          }
+          Write-Host "Running $($exes[0].Name)"
+          & $exes[0].FullName
       - if: runner.os != 'Windows'
         run: ./test_bin

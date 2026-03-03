@@ -1,0 +1,200 @@
+name: E2E Matrix
+
+on:
+  pull_request:
+    paths:
+      - 'implementations/**'
+      - 'e2e/**'
+      - '.github/workflows/e2e-matrix.yml'
+  push:
+    branches: [release]
+
+jobs:
+  detect-implementations:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.collect.outputs.matrix }}
+      has_changes: ${{ steps.collect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            IMPLS=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | awk -F/ '/^implementations\/[^\/]+\// {print $2}' | sort -u)
+          else
+            IMPLS=$(find implementations -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          fi
+
+          if [ -z "$IMPLS" ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'has_changes=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          INCLUDE=$(printf '%s\n' "$IMPLS" | jq -R -s -c '
+            split("\n")
+            | map(select(length > 0))
+            | map(
+                if . == "swift" then
+                  [
+                    {implementation: ., os: "ubuntu-latest"},
+                    {implementation: ., os: "macos-latest"}
+                  ]
+                elif . == "csharp"
+                  or . == "dart"
+                  or . == "go"
+                  or . == "java"
+                  or . == "kotlin"
+                  or . == "php"
+                  or . == "ruby"
+                  or . == "rust"
+                  or . == "typescript" then
+                  [
+                    {implementation: ., os: "ubuntu-latest"},
+                    {implementation: ., os: "windows-latest"}
+                  ]
+                else
+                  [{implementation: ., os: "ubuntu-latest"}]
+                end
+              )
+            | add
+          ')
+          echo "matrix={\"include\":$INCLUDE}" >> "$GITHUB_OUTPUT"
+          echo 'has_changes=true' >> "$GITHUB_OUTPUT"
+
+  run-e2e:
+    needs: detect-implementations
+    if: needs.detect-implementations.outputs.has_changes == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-implementations.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: ${{ matrix.implementation == 'crystal' }}
+        uses: crystal-lang/install-crystal@v1
+
+      - if: ${{ matrix.implementation == 'csharp' }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - if: ${{ matrix.implementation == 'd' }}
+        uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ldc-latest
+
+      - if: ${{ matrix.implementation == 'dart' }}
+        uses: dart-lang/setup-dart@v1
+
+      - if: ${{ matrix.implementation == 'elixir' }}
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.17.2'
+          otp-version: '27.0'
+
+      - if: ${{ matrix.implementation == 'go' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - if: ${{ matrix.implementation == 'java' || matrix.implementation == 'kotlin' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - if: ${{ matrix.implementation == 'julia' }}
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+
+      - if: ${{ matrix.implementation == 'lua' }}
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: '5.4'
+
+      - if: ${{ matrix.implementation == 'ocaml' }}
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.1'
+
+      - if: ${{ matrix.implementation == 'php' }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - if: ${{ matrix.implementation == 'ruby' }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - if: ${{ matrix.implementation == 'rust' }}
+        uses: dtolnay/rust-toolchain@stable
+
+      - if: ${{ matrix.implementation == 'swift' }}
+        uses: swift-actions/setup-swift@v2
+
+      - if: ${{ matrix.implementation == 'typescript' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - if: ${{ matrix.implementation == 'zig' }}
+        uses: mlugg/setup-zig@v1
+        with:
+          version: '0.13.0'
+
+      - name: Run implementation tests with timing
+        run: bash e2e/run-implementation.sh "${{ matrix.implementation }}"
+
+      - name: Upload perf artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-${{ matrix.implementation }}
+          path: e2e/perf/${{ matrix.implementation }}.json
+
+  perf-summary:
+    needs: [detect-implementations, run-e2e]
+    if: needs.detect-implementations.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: perf-*
+          path: e2e/perf
+          merge-multiple: true
+
+      - name: Print speed summary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! ls e2e/perf/*.json >/dev/null 2>&1; then
+            echo "No perf artifacts found"
+            exit 1
+          fi
+
+          jq -s 'sort_by(.total_ms)' e2e/perf/*.json > /tmp/perf_sorted.json
+
+          {
+            echo "## E2E Speed Summary"
+            echo
+            echo "| implementation | total_ms | avg_ms | p95_ms |"
+            echo "|---|---:|---:|---:|"
+            jq -r '.[] | [.implementation, .total_ms, .avg_ms, .p95_ms] | "| \(.[0]) | \(.[1]) | \(.[2]) | \(.[3]) |"' /tmp/perf_sorted.json
+            echo
+            echo "### Ranking (fastest first)"
+            jq -r 'to_entries[] | "\(.key + 1). \(.value.implementation) - \(.value.total_ms) ms"' /tmp/perf_sorted.json
+          } | tee /tmp/perf-summary.md
+
+          cat /tmp/perf-summary.md >> "$GITHUB_STEP_SUMMARY"

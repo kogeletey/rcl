@@ -27,7 +27,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-kotlin:
+  publish-java:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -47,30 +47,453 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  release-assets:
+  publish-csharp:
     runs-on: ubuntu-latest
-    needs: [publish-typescript, publish-kotlin]
+    defaults:
+      run:
+        working-directory: implementations/csharp
     steps:
       - uses: actions/checkout@v4
-      - name: Pack Go, Rust, Swift sources
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet run --nologo --configuration Release --project RclE2E.csproj
+      - run: dotnet pack Rcl.csproj --configuration Release --output ./nupkg
+      - name: Publish NuGet package to GitHub Packages
+        shell: bash
         run: |
-          tar -czf rcl-go.tar.gz -C implementations go
-          tar -czf rcl-rust.tar.gz -C implementations rust
-          tar -czf rcl-swift.tar.gz -C implementations swift
-      - uses: actions/upload-artifact@v4
+          dotnet nuget add source \
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GITHUB_TOKEN }}" \
+            --store-password-in-clear-text \
+            --name github \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          dotnet nuget push ./nupkg/*.nupkg --source github --skip-duplicate
+
+  publish-dart:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/dart
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart test
+      - run: dart pub token add https://pub.dev --env-var PUB_DEV_PUBLISH_ACCESS_TOKEN
+      - run: dart pub publish --force
+        env:
+          PUB_DEV_PUBLISH_ACCESS_TOKEN: ${{ secrets.PUB_DEV_PUBLISH_ACCESS_TOKEN }}
+
+  publish-d:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/d
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dlang-community/setup-dlang@v2
         with:
-          name: language-package-sources
-          path: |
-            rcl-go.tar.gz
-            rcl-rust.tar.gz
-            rcl-swift.tar.gz
-      - name: Attach assets to GitHub release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+          compiler: ldc-latest
+      - run: ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin
+      - run: ./test_bin
+      - name: Publish to code.dlang.org
+        run: dub publish --non-interactive
+        env:
+          DUB_TOKEN: ${{ secrets.DUB_TOKEN }}
+
+  publish-elixir:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/elixir
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
         with:
-          files: |
-            rcl-go.tar.gz
-            rcl-rust.tar.gz
-            rcl-swift.tar.gz
+          elixir-version: "1.17.2"
+          otp-version: "27.0"
+      - run: mix local.hex --force
+      - run: mix test
+      - run: mix hex.publish --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+
+  publish-julia:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/julia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.10"
+      - run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
+      - name: Register in Julia General registry
+        uses: JuliaRegistries/RegisterAction@v1
+        with:
+          package: RCL
+          path: implementations/julia
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_TOKEN: ${{ secrets.JULIA_REGISTRY_TOKEN }}
+
+  publish-ocaml:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/ocaml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.1"
+      - run: opam exec -- ocamlc -I +str -I +unix str.cma unix.cma rcl.ml test.ml -o test_bin
+      - run: opam exec -- ./test_bin
+      - run: opam install -y opam-publish
+      - name: Publish to opam-repository
+        run: opam exec -- opam publish --token "${{ secrets.OPAM_GITHUB_TOKEN }}" --no-browser rcl.opam
+
+  publish-php:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/php
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer:v2
+      - run: php test/test.php
+      - run: composer validate --strict
+      - name: Update package on Packagist
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -X POST "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"repository\":{\"url\":\"https://github.com/${{ github.repository }}\"}}"
+
+  publish-ruby:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/ruby
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+      - name: Configure GitHub Packages credentials
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.gem"
+          cat > "$HOME/.gem/credentials" <<EOF
+          ---
+          :github: Bearer ${{ secrets.GITHUB_TOKEN }}
+          EOF
+          chmod 0600 "$HOME/.gem/credentials"
+      - run: ruby -Ilib test/parser_test.rb
+      - run: gem build rcl-ruby.gemspec
+      - run: gem push --key github --host "https://rubygems.pkg.github.com/${{ github.repository_owner }}" *.gem
+
+  publish-rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all-targets
+      - run: cargo publish --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"
+
+  publish-lua:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/lua
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: '5.4'
+      - uses: leafo/gh-actions-luarocks@v4
+
+      - run: lua test.lua
+      - run: luarocks pack rcl-0.1.0-1.rockspec
+      - run: luarocks upload --api-key "${{ secrets.LUAROCKS_API_KEY }}" rcl-0.1.0-1.src.rock
+
+  publish-swift:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/swift
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+      - run: swift test
+      - name: Publish to Swift Package Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          swift package-registry login "${{ secrets.SWIFT_PACKAGE_REGISTRY_URL }}" --token "${{ secrets.SWIFT_PACKAGE_REGISTRY_TOKEN }}"
+          swift package-registry publish "${{ secrets.SWIFT_PACKAGE_ID }}" "$version"
+
+  publish-zig:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/zig
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v1
+        with:
+          version: '0.13.0'
+      - run: zig test rcl.zig
+      - name: Native Zig publish (tag-based)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GITHUB_REF_NAME:-}"
+          echo "Zig native distribution uses VCS tags/releases. Current tag: ${GITHUB_REF_NAME}"
+
+  publish-c-conan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/c
+    steps:
+      - uses: actions/checkout@v4
+      - run: cc -std=c11 -Wall -Wextra -O2 rcl.c rcl_ast.c rcl_lexer.c rcl_parser.c rcl_parser_value.c rcl_project.c rcl_format.c rcl_convert.c test.c -o test_bin
+      - run: ./test_bin
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install conan
+      - run: cp ../../packaging/conan/rcl-c/conanfile.py ./conanfile.py
+      - run: conan profile detect --force
+      - run: conan remote add rcl "${{ secrets.CONAN_REMOTE_URL }}" --force
+      - run: conan remote login rcl "${{ secrets.CONAN_USER }}" -p "${{ secrets.CONAN_PASSWORD }}"
+      - run: conan create . --name=rcl-c --version=0.1.0 --user="${{ secrets.CONAN_USER }}" --channel=stable -b missing
+      - run: conan upload "rcl-c/0.1.0@${{ secrets.CONAN_USER }}/stable" -r rcl --confirm
+
+  publish-cpp-conan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/cpp
+    steps:
+      - uses: actions/checkout@v4
+      - run: c++ -std=c++17 -Wall -Wextra -O2 rcl.cpp rcl_ast.cpp rcl_lexer.cpp rcl_parser.cpp rcl_project.cpp rcl_format.cpp rcl_convert.cpp test.cpp -o test_bin
+      - run: ./test_bin
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install conan
+      - run: cp ../../packaging/conan/rcl-cpp/conanfile.py ./conanfile.py
+      - run: conan profile detect --force
+      - run: conan remote add rcl "${{ secrets.CONAN_REMOTE_URL }}" --force
+      - run: conan remote login rcl "${{ secrets.CONAN_USER }}" -p "${{ secrets.CONAN_PASSWORD }}"
+      - run: conan create . --name=rcl-cpp --version=0.1.0 --user="${{ secrets.CONAN_USER }}" --channel=stable -b missing
+      - run: conan upload "rcl-cpp/0.1.0@${{ secrets.CONAN_USER }}/stable" -r rcl --confirm
+
+  publish-c-cpp-debian:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - impl: c
+            pkg: rcl-c
+            libname: rcl
+            hdrs: "rcl.h"
+            compile: "cc -std=c11 -O2 -fPIC -c rcl.c rcl_ast.c rcl_lexer.c rcl_parser.c rcl_parser_value.c rcl_project.c rcl_format.c rcl_convert.c"
+          - impl: cpp
+            pkg: rcl-cpp
+            libname: rclcpp
+            hdrs: "rcl.hpp rcl_lexer.hpp rcl_project.hpp"
+            compile: "c++ -std=c++17 -O2 -fPIC -c rcl.cpp rcl_ast.cpp rcl_lexer.cpp rcl_parser.cpp rcl_project.cpp rcl_format.cpp rcl_convert.cpp"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Debian package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "implementations/${{ matrix.impl }}"
+          eval "${{ matrix.compile }}"
+          ar rcs "lib${{ matrix.libname }}.a" *.o
+          mkdir -p /tmp/deb/DEBIAN /tmp/deb/usr/lib /tmp/deb/usr/include
+          cp "lib${{ matrix.libname }}.a" /tmp/deb/usr/lib/
+          cp ${{ matrix.hdrs }} /tmp/deb/usr/include/
+          cat > /tmp/deb/DEBIAN/control <<EOF
+          Package: lib${{ matrix.pkg }}-dev
+          Version: 0.1.0-1
+          Section: libdevel
+          Priority: optional
+          Architecture: amd64
+          Maintainer: RCL Contributors <opensource@rcl.dev>
+          Description: RCL ${{ matrix.impl }} development package
+          EOF
+          dpkg-deb --build /tmp/deb "/tmp/lib${{ matrix.pkg }}-dev_0.1.0-1_amd64.deb"
+      - name: Publish to Debian repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -u "${{ secrets.DEBIAN_REPO_USER }}:${{ secrets.DEBIAN_REPO_TOKEN }}" \
+            -F "deb=@/tmp/lib${{ matrix.pkg }}-dev_0.1.0-1_amd64.deb" \
+            "${{ secrets.DEBIAN_REPO_UPLOAD_URL }}"
+
+  publish-c-cpp-void:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [rcl-c, rcl-cpp]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish template to Void packages repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone "https://${{ secrets.VOID_REPO_TOKEN }}@github.com/${{ secrets.VOID_REPO_PATH }}.git" /tmp/void-packages
+          mkdir -p "/tmp/void-packages/srcpkgs/${{ matrix.pkg }}"
+          cp "packaging/void/${{ matrix.pkg }}/template" "/tmp/void-packages/srcpkgs/${{ matrix.pkg }}/template"
+          cd /tmp/void-packages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "srcpkgs/${{ matrix.pkg }}/template"
+          git commit -m "Add/update ${{ matrix.pkg }} template v0.1.0" || true
+          git push
+
+  publish-c-cpp-winpkgs:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [rcl-c, rcl-cpp]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish port to winpkgs registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone "https://${{ secrets.WINPKGS_REPO_TOKEN }}@github.com/${{ secrets.WINPKGS_REPO_PATH }}.git" /tmp/winpkgs
+          mkdir -p "/tmp/winpkgs/ports/${{ matrix.pkg }}"
+          cp "packaging/winpkgs/vcpkg/ports/${{ matrix.pkg }}/portfile.cmake" "/tmp/winpkgs/ports/${{ matrix.pkg }}/portfile.cmake"
+          cp "packaging/winpkgs/vcpkg/ports/${{ matrix.pkg }}/vcpkg.json" "/tmp/winpkgs/ports/${{ matrix.pkg }}/vcpkg.json"
+          cp "packaging/winpkgs/vcpkg/ports/${{ matrix.pkg }}/usage" "/tmp/winpkgs/ports/${{ matrix.pkg }}/usage"
+          cd /tmp/winpkgs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "ports/${{ matrix.pkg }}"
+          git commit -m "Add/update ${{ matrix.pkg }} port v0.1.0" || true
+          git push
+
+  publish-c-cpp-aur:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [rcl-c, rcl-cpp]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup SSH for AUR
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+      - name: Publish package to AUR
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="/tmp/aur-${{ matrix.pkg }}"
+          git clone "ssh://aur@aur.archlinux.org/${{ matrix.pkg }}.git" "$work"
+          cp "packaging/aur/${{ matrix.pkg }}/PKGBUILD" "$work/PKGBUILD"
+          cp "packaging/aur/${{ matrix.pkg }}/.SRCINFO" "$work/.SRCINFO"
+          cd "$work"
+          git config user.name "${{ secrets.AUR_GIT_NAME }}"
+          git config user.email "${{ secrets.AUR_GIT_EMAIL }}"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update ${{ matrix.pkg }} to 0.1.0" || true
+          git push
+
+  publish-summary:
+    if: always()
+    needs:
+      - publish-typescript
+      - publish-java
+      - publish-csharp
+      - publish-dart
+      - publish-d
+      - publish-elixir
+      - publish-julia
+      - publish-ocaml
+      - publish-php
+      - publish-ruby
+      - publish-rust
+      - publish-lua
+      - publish-swift
+      - publish-zig
+      - publish-c-conan
+      - publish-cpp-conan
+      - publish-c-cpp-debian
+      - publish-c-cpp-void
+      - publish-c-cpp-winpkgs
+      - publish-c-cpp-aur
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check publish results
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "publish-typescript=${{ needs.publish-typescript.result }}"
+          echo "publish-java=${{ needs.publish-java.result }}"
+          echo "publish-csharp=${{ needs.publish-csharp.result }}"
+          echo "publish-dart=${{ needs.publish-dart.result }}"
+          echo "publish-d=${{ needs.publish-d.result }}"
+          echo "publish-elixir=${{ needs.publish-elixir.result }}"
+          echo "publish-julia=${{ needs.publish-julia.result }}"
+          echo "publish-ocaml=${{ needs.publish-ocaml.result }}"
+          echo "publish-php=${{ needs.publish-php.result }}"
+          echo "publish-ruby=${{ needs.publish-ruby.result }}"
+          echo "publish-rust=${{ needs.publish-rust.result }}"
+          echo "publish-lua=${{ needs.publish-lua.result }}"
+          echo "publish-swift=${{ needs.publish-swift.result }}"
+          echo "publish-zig=${{ needs.publish-zig.result }}"
+          echo "publish-c-conan=${{ needs.publish-c-conan.result }}"
+          echo "publish-cpp-conan=${{ needs.publish-cpp-conan.result }}"
+          echo "publish-c-cpp-debian=${{ needs.publish-c-cpp-debian.result }}"
+          echo "publish-c-cpp-void=${{ needs.publish-c-cpp-void.result }}"
+          echo "publish-c-cpp-winpkgs=${{ needs.publish-c-cpp-winpkgs.result }}"
+          echo "publish-c-cpp-aur=${{ needs.publish-c-cpp-aur.result }}"
+
+          if [ "${{ needs.publish-typescript.result }}" != "success" ] || \
+             [ "${{ needs.publish-java.result }}" != "success" ] || \
+             [ "${{ needs.publish-csharp.result }}" != "success" ] || \
+             [ "${{ needs.publish-dart.result }}" != "success" ] || \
+             [ "${{ needs.publish-d.result }}" != "success" ] || \
+             [ "${{ needs.publish-elixir.result }}" != "success" ] || \
+             [ "${{ needs.publish-julia.result }}" != "success" ] || \
+             [ "${{ needs.publish-ocaml.result }}" != "success" ] || \
+             [ "${{ needs.publish-php.result }}" != "success" ] || \
+             [ "${{ needs.publish-ruby.result }}" != "success" ] || \
+             [ "${{ needs.publish-rust.result }}" != "success" ] || \
+             [ "${{ needs.publish-lua.result }}" != "success" ] || \
+             [ "${{ needs.publish-swift.result }}" != "success" ] || \
+             [ "${{ needs.publish-zig.result }}" != "success" ] || \
+             [ "${{ needs.publish-c-conan.result }}" != "success" ] || \
+             [ "${{ needs.publish-cpp-conan.result }}" != "success" ] || \
+             [ "${{ needs.publish-c-cpp-debian.result }}" != "success" ] || \
+             [ "${{ needs.publish-c-cpp-void.result }}" != "success" ] || \
+             [ "${{ needs.publish-c-cpp-winpkgs.result }}" != "success" ] || \
+             [ "${{ needs.publish-c-cpp-aur.result }}" != "success" ]; then
+            echo "One or more package publishes failed"
+            exit 1
+          fi

@@ -4,24 +4,24 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/csharp/**'
+      - '.github/workflows/ci-csharp.yml'
+      - 'e2e/**'
 
 jobs:
   csharp:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: implementations/csharp
     steps:
       - uses: actions/checkout@v4
-      - if: runner.os == 'Linux'
-        run: sudo apt-get update
-      - if: runner.os == 'Linux'
-        run: sudo apt-get install -y mono-mcs
-      - if: runner.os == 'macOS'
-        run: brew install mono
-      - run: mcs -out:test_bin src/*.cs test/Test.cs
-      - run: mono test_bin
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet run --nologo --configuration Release --project RclE2E.csproj

@@ -1,0 +1,19 @@
+{
+  "name": "kogeletey/rcl-php",
+  "description": "Native PHP implementation of RCL v1",
+  "type": "library",
+  "license": "MIT",
+  "keywords": ["rcl", "parser", "formatter", "config"],
+  "require": {
+    "php": ">=8.1"
+  },
+  "autoload": {
+    "files": [
+      "src/RCLLexer.php",
+      "src/RCLParser.php",
+      "src/RCLAst.php",
+      "src/RCLConvert.php",
+      "src/RCL.php"
+    ]
+  }
+}

@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/kotlin/**'
+      - '.github/workflows/ci-kotlin.yml'
+      - 'e2e/**'
 
 jobs:
   kotlin:
@@ -21,4 +25,16 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Verify Kotlin sources exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d src/main/kotlin ] || ! find src/main/kotlin -type f -name '*.kt' | grep -q .; then
+            echo "No Kotlin sources found in src/main/kotlin"
+            exit 1
+          fi
+          if [ ! -d src/test/kotlin ] || ! find src/test/kotlin -type f -name '*.kt' | grep -q .; then
+            echo "No Kotlin tests found in src/test/kotlin"
+            exit 1
+          fi
       - run: mvn -B -ntp test

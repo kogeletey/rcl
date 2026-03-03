@@ -10,8 +10,9 @@ defmodule RCLTest do
       RCL.parse(src)
     rescue
       e ->
-        assert String.contains?(e.message, msg)
-        assert String.contains?(e.message, "line")
+        err = Exception.message(e)
+        assert String.contains?(err, msg)
+        assert String.contains?(err, "line")
     end
   end
 

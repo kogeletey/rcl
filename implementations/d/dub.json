@@ -1,0 +1,8 @@
+{
+  "name": "rcl-d",
+  "description": "Native D implementation of RCL v1",
+  "license": "MIT",
+  "authors": ["RCL Contributors"],
+  "targetType": "library",
+  "sourcePaths": ["source"]
+}

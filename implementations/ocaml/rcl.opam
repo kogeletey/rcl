@@ -1,0 +1,18 @@
+opam-version: "2.0"
+synopsis: "RCL parser and formatter for OCaml"
+description: "Native OCaml implementation of RCL v1."
+maintainer: "RCL Contributors"
+authors: ["RCL Contributors"]
+license: "MIT"
+homepage: "https://github.com/kogeletey/rcl"
+bug-reports: "https://github.com/kogeletey/rcl/issues"
+depends: [
+  "ocaml" {>= "5.1"}
+]
+build: [
+  ["ocamlc" "-I" "+str" "-I" "+unix" "str.cma" "unix.cma" "rcl.ml" "-c"]
+]
+install: [
+  ["mkdir" "-p" "%{lib}%/rcl"]
+  ["cp" "rcl.cmi" "rcl.cmo" "%{lib}%/rcl/"]
+]

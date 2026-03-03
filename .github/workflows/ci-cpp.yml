@@ -4,6 +4,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'implementations/cpp/**'
+      - '.github/workflows/ci-cpp.yml'
+      - 'e2e/**'
 
 jobs:
   cpp:
