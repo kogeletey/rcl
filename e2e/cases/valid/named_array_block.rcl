@@ -1,0 +1,10 @@
+config do
+  tests do [
+    do
+      type = "smoke"
+      enabled = true
+    end,
+    "string",
+    [1, 2, 3]
+  ] end
+end

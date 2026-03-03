@@ -1,0 +1,3 @@
+The package rcl-c is header-first.
+
+#include <rcl.h>

@@ -1,0 +1,7 @@
+{
+  "name": "rcl-c",
+  "version": "0.1.0",
+  "description": "RCL parser/formatter library in C",
+  "homepage": "https://github.com/kogeletey/rcl",
+  "license": "MIT"
+}

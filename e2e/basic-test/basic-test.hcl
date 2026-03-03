@@ -1,3 +1,7 @@
+region = "us"
+kube = "rnates"
+port = 3000
+
 config {
   enabled = true
   port = 8080
@@ -6,8 +10,8 @@ config {
     cert_path = "/etc/cert.pem"
   }
   names = ["a", "b", 1, false]
-  regions {
-    us {
+  example {
+    block {
       name = "My Name"
     }
   }

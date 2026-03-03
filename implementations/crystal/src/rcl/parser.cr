@@ -17,6 +17,13 @@ module RCL
     end
 
     def parse : Document
+      if @current_token.type == TokenType::Do
+        eat(TokenType::Do)
+        root_array = parse_array
+        raise "Unexpected token after root array at line #{@current_token.line}, column #{@current_token.column}" unless @current_token.type == TokenType::EOF
+        return Document.new([] of BlockNode, root_value: root_array)
+      end
+
       blocks = [] of BlockNode
 
       while @current_token.type != TokenType::EOF
@@ -38,44 +45,67 @@ module RCL
 
       eat(TokenType::Do)
 
+      properties, blocks, named_blocks = parse_block_body
+
+      eat(TokenType::End)
+      BlockNode.new(name, argument, properties, blocks, named_blocks)
+    end
+
+    private def parse_anonymous_block : BlockNode
+      eat(TokenType::Do)
+      properties, blocks, named_blocks = parse_block_body
+      eat(TokenType::End)
+      BlockNode.new("", nil, properties, blocks, named_blocks)
+    end
+
+    private def parse_block_body
       properties = {} of String => ASTNode
       blocks = {} of String => BlockNode
       named_blocks = [] of BlockNode
       seen_keys = Set(String).new
 
       while @current_token.type != TokenType::End
-        if @current_token.type == TokenType::Identifier
-          next_token = peek_token
+        if @current_token.type == TokenType::EOF
+          raise "missing 'end' for block at line #{@current_token.line}, column #{@current_token.column}"
+        end
+        raise "Expected identifier at line #{@current_token.line}, column #{@current_token.column}" unless @current_token.type == TokenType::Identifier
 
-          if next_token.type == TokenType::Do || next_token.type == TokenType::String
-            block = parse_block
-            if block.argument
-              named_blocks << block
-            else
-              blocks[block.name] = block
-            end
-          elsif next_token.type == TokenType::Equal || next_token.type == TokenType::Dot
-            key = parse_property_key
+        next_token = peek_token
+        if next_token.type == TokenType::Do
+          after_do = peek_token(2)
+          if after_do.type == TokenType::LBracket
+            key = @current_token.value
+            eat(TokenType::Identifier)
             ensure_property_key_valid!(key, seen_keys)
-            eat(TokenType::Equal)
-            value = parse_value
-            properties[key] = value
+            eat(TokenType::Do)
+            properties[key] = parse_array
+            eat(TokenType::End)
           else
-            # Unknown - treat as block
-            block = parse_block
-            if block.argument
-              named_blocks << block
+            child = parse_block
+            if child.argument
+              named_blocks << child
             else
-              blocks[block.name] = block
+              blocks[child.name] = child
             end
           end
+        elsif next_token.type == TokenType::String
+          child = parse_block
+          if child.argument
+            named_blocks << child
+          else
+            blocks[child.name] = child
+          end
+        elsif next_token.type == TokenType::Equal || next_token.type == TokenType::Dot
+          key = parse_property_key
+          ensure_property_key_valid!(key, seen_keys)
+          eat(TokenType::Equal)
+          properties[key] = parse_value
         else
-          break
+          raise "invalid statement after '#{@current_token.value}' at line #{@current_token.line}, column #{@current_token.column}"
         end
       end
 
-      eat(TokenType::End)
-      BlockNode.new(name, argument, properties, blocks, named_blocks)
+      {properties, blocks, named_blocks}
     end
 
     private def parse_property_key : String
@@ -114,6 +144,8 @@ module RCL
         end
       when TokenType::LBracket
         parse_array
+      when TokenType::Do
+        parse_anonymous_block
       else
         raise "Unexpected token: #{@current_token.type} at line #{@current_token.line}"
       end
@@ -155,11 +187,14 @@ module RCL
       end
     end
 
-    private def peek_token : Token
+    private def peek_token(offset : Int32 = 1) : Token
       saved_pos, saved_line, saved_col = @lexer.pos, @lexer.line, @lexer.column
       saved_token = @current_token
 
-      token = @lexer.next_token
+      token = @current_token
+      offset.times do
+        token = @lexer.next_token
+      end
 
       @lexer.pos, @lexer.line, @lexer.column = saved_pos, saved_line, saved_col
       @current_token = saved_token

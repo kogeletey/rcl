@@ -7,14 +7,15 @@ module RCL
     end
 
     def self.to_toml(value : RCL::Value) : String
-      root = value.as(Hash(String, RCL::Value))
+      root = value.is_a?(Hash(String, RCL::Value)) ? value : {"root" => value} of String => RCL::Value
       out = [] of String
       emit_toml_table(root, nil, out)
       out.join("\n")
     end
 
     def self.to_hcl(value : RCL::Value) : String
-      emit_hcl(value, 0)
+      root = value.is_a?(Hash(String, RCL::Value)) ? value : {"root" => value} of String => RCL::Value
+      emit_hcl(root, 0)
     end
 
     private def self.emit_yaml(value : RCL::Value, indent : Int32) : String

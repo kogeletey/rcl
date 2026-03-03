@@ -1,0 +1,11 @@
+pkgbase = rcl-cpp
+	pkgdesc = RCL parser/formatter library in C++
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/kogeletey/rcl
+	arch = x86_64
+	license = MIT
+	source = rcl-cpp-0.1.0.tar.gz::https://github.com/kogeletey/rcl/archive/refs/tags/v0.1.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = rcl-cpp

@@ -11,6 +11,9 @@ module RCL
     end
 
     def format(document : Document) : String
+      if rv = document.root_value
+        return "do #{format_value(rv)}" if rv.is_a?(ArrayNode)
+      end
       document.blocks.map { |block| format_block(block, 0) }.join("\n\n")
     end
 
@@ -21,7 +24,11 @@ module RCL
       lines << header
 
       block.properties.each do |key, value|
-        lines << "#{pad}  #{key} = #{format_value(value)}"
+        if value.is_a?(ArrayNode)
+          lines << "#{pad}  #{key} do #{format_value(value)} end"
+        else
+          lines << "#{pad}  #{key} = #{format_value(value)}"
+        end
       end
 
       each_child_block(block) do |child|
@@ -59,10 +66,35 @@ module RCL
       when ArrayNode
         "[#{node.elements.map { |element| format_value(element) }.join(", ")}]"
       when BlockNode
-        node.name
+        format_anonymous_block(node)
       else
         raise "Unsupported AST node for formatter: #{node.class}"
       end
+    end
+
+    private def format_anonymous_block(block : BlockNode) : String
+      parts = [] of String
+      block.properties.each do |k, v|
+        parts << "#{k} = #{format_value(v)}"
+      end
+      each_child_block(block) do |child|
+        parts << format_block_inline(child)
+      end
+      body = parts.join(" ")
+      body.empty? ? "do end" : "do #{body} end"
+    end
+
+    private def format_block_inline(block : BlockNode) : String
+      header = block.argument ? "#{block.name} #{quote(block.argument.not_nil!)} do" : "#{block.name} do"
+      parts = [] of String
+      block.properties.each do |k, v|
+        parts << "#{k} = #{format_value(v)}"
+      end
+      each_child_block(block) do |child|
+        parts << format_block_inline(child)
+      end
+      body = parts.join(" ")
+      body.empty? ? "#{header} end" : "#{header} #{body} end"
     end
 
     private def quote(value : String) : String

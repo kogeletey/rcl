@@ -65,15 +65,15 @@ module RCL
   end
 
   def self.to_yaml(document : Document) : String
-    RCL::Converters.to_yaml(document.to_h)
+    RCL::Converters.to_yaml(document.to_value)
   end
 
   def self.to_toml(document : Document) : String
-    RCL::Converters.to_toml(document.to_h)
+    RCL::Converters.to_toml(document.to_value)
   end
 
   def self.to_hcl(document : Document) : String
-    RCL::Converters.to_hcl(document.to_h)
+    RCL::Converters.to_hcl(document.to_value)
   end
 
   def self.parse_string_to_yaml(content : String) : String

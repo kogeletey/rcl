@@ -1,0 +1,16 @@
+# Template file for 'rcl-c'
+pkgname=rcl-c
+version=0.1.0
+revision=1
+build_style=gnu-makefile
+short_desc="RCL parser/formatter library in C"
+maintainer="RCL Contributors <opensource@rcl.dev>"
+license="MIT"
+homepage="https://github.com/kogeletey/rcl"
+distfiles="https://github.com/kogeletey/rcl/archive/refs/tags/v${version}.tar.gz"
+checksum=SKIP
+
+post_install() {
+	vmkdir usr/include
+	vcopy implementations/c/rcl.h usr/include
+}

@@ -6,11 +6,14 @@ module RCL
   class Document
     getter blocks : Array(BlockNode)
     getter root : Hash(String, ASTNode)
+    getter root_value : ASTNode?
 
-    def initialize(@blocks = [] of BlockNode)
+    def initialize(@blocks = [] of BlockNode, @root_value : ASTNode? = nil)
       @root = {} of String => ASTNode
 
-      if @blocks.size == 1
+      if @root_value
+        @root = {} of String => ASTNode
+      elsif @blocks.size == 1
         block = @blocks.first
         block.properties.each { |k, v| @root[k] = v }
         block.blocks.each { |k, v| @root[k] = v }
@@ -78,6 +81,10 @@ module RCL
     end
 
     def to_h : Hash(String, RCL::Value)
+      if rv = @root_value
+        return {"root" => node_to_h(rv)} of String => RCL::Value
+      end
+
       result = {} of String => RCL::Value
       @blocks.each do |block|
         if arg = block.argument
@@ -90,11 +97,26 @@ module RCL
       result
     end
 
+    def to_value : RCL::Value
+      if rv = @root_value
+        node_to_h(rv)
+      else
+        to_h
+      end
+    end
+
     def to_ast_h : Hash(String, RCL::Value)
-      {
-        "kind"   => "document",
-        "blocks" => @blocks.map(&.to_ast_h),
-      }
+      if rv = @root_value
+        {
+          "kind"  => "document",
+          "value" => rv.to_ast_h,
+        }
+      else
+        {
+          "kind"   => "document",
+          "blocks" => @blocks.map(&.to_ast_h),
+        }
+      end
     end
 
     def to_json(json : JSON::Builder) : Nil

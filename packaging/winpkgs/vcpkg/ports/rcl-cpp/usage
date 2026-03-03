@@ -1,0 +1,3 @@
+The package rcl-cpp is header-first.
+
+#include <rcl.hpp>

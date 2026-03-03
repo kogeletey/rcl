@@ -1,0 +1,18 @@
+# Template file for 'rcl-cpp'
+pkgname=rcl-cpp
+version=0.1.0
+revision=1
+build_style=gnu-makefile
+short_desc="RCL parser/formatter library in C++"
+maintainer="RCL Contributors <opensource@rcl.dev>"
+license="MIT"
+homepage="https://github.com/kogeletey/rcl"
+distfiles="https://github.com/kogeletey/rcl/archive/refs/tags/v${version}.tar.gz"
+checksum=SKIP
+
+post_install() {
+	vmkdir usr/include
+	vcopy implementations/cpp/rcl.hpp usr/include
+	vcopy implementations/cpp/rcl_lexer.hpp usr/include
+	vcopy implementations/cpp/rcl_project.hpp usr/include
+}

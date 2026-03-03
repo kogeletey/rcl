@@ -1,0 +1,16 @@
+pkgname=rcl-cpp
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="RCL parser/formatter library in C++"
+arch=('x86_64')
+url="https://github.com/kogeletey/rcl"
+license=('MIT')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/kogeletey/rcl/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  install -Dm644 "${srcdir}/rcl-${pkgver}/implementations/cpp/rcl.hpp" "${pkgdir}/usr/include/rcl.hpp"
+  install -Dm644 "${srcdir}/rcl-${pkgver}/implementations/cpp/rcl_lexer.hpp" "${pkgdir}/usr/include/rcl_lexer.hpp"
+  install -Dm644 "${srcdir}/rcl-${pkgver}/implementations/cpp/rcl_project.hpp" "${pkgdir}/usr/include/rcl_project.hpp"
+  install -Dm644 "${srcdir}/rcl-${pkgver}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

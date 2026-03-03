@@ -1,22 +1,22 @@
-tests = [
-  {
+tests do [
+  do
     name = "basic-test"
     expected = "valid"
-    formats = ["json", "toml", "yml", "hcl", "rcl"]
-  },
-  {
+    formats do ["json", "toml", "yml", "hcl", "rcl"] end
+  end,
+  do
     name = "max-nesting-test"
     expected = "valid"
-    formats = ["json", "toml", "yml", "hcl", "rcl"]
-  },
-  {
+    formats do ["json", "toml", "yml", "hcl", "rcl"] end
+  end,
+  do
     name = "max-array-test"
     expected = "valid"
-    formats = ["json", "toml", "yml", "hcl", "rcl"]
-  },
-  {
+    formats do ["json", "toml", "yml", "hcl", "rcl"] end
+  end,
+  do
     name = "do-workflow-invalid-test"
     expected = "invalid"
-    formats = ["json", "toml", "yml", "hcl", "rcl"]
-  }
-]
+    formats do ["json", "toml", "yml", "hcl", "rcl"] end
+  end
+] end

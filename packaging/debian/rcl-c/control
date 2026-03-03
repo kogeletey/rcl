@@ -1,0 +1,7 @@
+Package: librcl-c-dev
+Version: 0.1.0-1
+Section: libdevel
+Priority: optional
+Architecture: any
+Maintainer: RCL Contributors <opensource@rcl.dev>
+Description: RCL C development headers

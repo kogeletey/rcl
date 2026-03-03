@@ -1,0 +1,12 @@
+bench do
+  steps = [
+    do
+      name = "prepare"
+    end,
+    do
+      name = "execute"
+      flags = ["fast", "safe"]
+    end,
+    "done"
+  ]
+end
