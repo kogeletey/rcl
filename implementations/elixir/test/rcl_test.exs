@@ -46,4 +46,39 @@ defmodule RCLTest do
     fails("x do\n  s = 'bad'\nend\n", "single-quoted string usage")
     fails("x do\n  @ = 1\nend\n", "unexpected character")
   end
+
+  test "array workflow supports named arrays root arrays and anonymous blocks" do
+    src = """
+    config do
+      tests do [
+        do
+          name = "case-1"
+        end,
+        "string"
+      ] end
+    end
+    """
+
+    obj = RCL.to_object(src)
+    assert obj["config"]["tests"] |> Enum.at(0) |> Map.get("name") == "case-1"
+    assert obj["config"]["tests"] |> Enum.at(1) == "string"
+    assert String.contains?(RCL.format(src), "tests do [")
+
+    root = """
+    do [
+      do
+        name = "root-item"
+      end,
+      "x"
+    ]
+    """
+
+    root_obj = RCL.to_object(root)
+    assert root_obj["root"] |> Enum.at(0) |> Map.get("name") == "root-item"
+    assert root_obj["root"] |> Enum.at(1) == "x"
+
+    fails("x do\n  tests do [1, 2]\nend\n", "missing end")
+    fails("do [1, 2", "missing ]")
+    fails("x do\n  arr = [do\n    a = 1\n]\nend\n", "missing end")
+  end
 end

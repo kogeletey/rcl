@@ -8,6 +8,13 @@ class Parser {
   }
 
   Map<String, dynamic> program() {
+    if (t.type == 'do') {
+      _eat('do');
+      final rootValue = _value();
+      if (rootValue['type'] != 'array') _fail('unexpected token', t);
+      if (t.type != 'eof') _fail('unexpected token after root array', t);
+      return {'type': 'Document', 'blocks': <Map<String, dynamic>>[], 'rootValue': rootValue};
+    }
     final blocks = <Map<String, dynamic>>[];
     while (t.type != 'eof') {
       blocks.add(_block());
@@ -32,7 +39,25 @@ class Parser {
 
   Map<String, dynamic> _stmt(List<List<String>> keys) {
     final id = _eat('id');
-    if (t.type == 'do' || t.type == 'string') {
+    if (t.type == 'do') {
+      _eat('do');
+      if (t.type == '[') {
+        final path = <String>[id.value as String];
+        _check(keys, path, id);
+        final value = _value();
+        _eat('end');
+        return {'type': 'property', 'key': path, 'value': value};
+      }
+      final stmts = <Map<String, dynamic>>[];
+      final inner = <List<String>>[];
+      while (t.type != 'end') {
+        if (t.type == 'eof') _fail('missing end', t);
+        stmts.add(_stmt(inner));
+      }
+      _eat('end');
+      return {'type': 'Block', 'name': id.value, 'arg': null, 'statements': stmts};
+    }
+    if (t.type == 'string') {
       String? arg;
       if (t.type == 'string') arg = _eat('string').value as String;
       _eat('do');
@@ -82,6 +107,17 @@ class Parser {
       if (t.type != ']') _fail('missing ]', start);
       _eat(']');
       return {'type': 'array', 'items': items};
+    }
+    if (t.type == 'do') {
+      _eat('do');
+      final stmts = <Map<String, dynamic>>[];
+      final inner = <List<String>>[];
+      while (t.type != 'end') {
+        if (t.type == 'eof') _fail('missing end', t);
+        stmts.add(_stmt(inner));
+      }
+      _eat('end');
+      return {'type': 'block', 'name': '', 'arg': null, 'statements': stmts};
     }
     if (t.type == 'id') _fail('invalid bare identifier value', t);
     _fail('unexpected token', t);

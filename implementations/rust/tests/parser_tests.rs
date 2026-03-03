@@ -84,3 +84,50 @@ fn strict_edges() {
         assert!(parse(src).is_err());
     }
 }
+
+#[test]
+fn array_features() {
+    let named = r#"config do
+  tests do [
+    do
+      name = "case-1"
+    end,
+    "string"
+  ] end
+end"#;
+    let doc = parse(named).expect("parse named array");
+    let obj = to_object(&doc);
+    let cfg = match obj.get("config").expect("config") {
+        rcl_parser::convert::Value::O(v) => v,
+        _ => panic!("config type"),
+    };
+    let tests = match cfg.get("tests").expect("tests") {
+        rcl_parser::convert::Value::A(v) => v,
+        _ => panic!("tests type"),
+    };
+    let first = match &tests[0] {
+        rcl_parser::convert::Value::O(v) => v,
+        _ => panic!("first type"),
+    };
+    assert_eq!(first.get("name"), Some(&rcl_parser::convert::Value::S("case-1".to_string())));
+    assert_eq!(tests[1], rcl_parser::convert::Value::S("string".to_string()));
+
+    let root = r#"do [
+  do
+    name = "root-item"
+  end,
+  "x"
+]"#;
+    let root_doc = parse(root).expect("parse root array");
+    let root_obj = to_object(&root_doc);
+    let root_arr = match root_obj.get("root").expect("root") {
+        rcl_parser::convert::Value::A(v) => v,
+        _ => panic!("root type"),
+    };
+    let root_first = match &root_arr[0] {
+        rcl_parser::convert::Value::O(v) => v,
+        _ => panic!("root first"),
+    };
+    assert_eq!(root_first.get("name"), Some(&rcl_parser::convert::Value::S("root-item".to_string())));
+    assert_eq!(root_arr[1], rcl_parser::convert::Value::S("x".to_string()));
+}

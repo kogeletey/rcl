@@ -24,6 +24,8 @@ static int append(Builder *b, const char *s) {
   return 1;
 }
 
+static int json(Builder *b, const ObjValue *v);
+
 static int scalar(Builder *b, const ObjValue *v) {
   size_t i;
   char num[32], *q;
@@ -42,11 +44,11 @@ static int scalar(Builder *b, const ObjValue *v) {
     if (!append(b, "[")) return 0;
     for (i = 0; i < v->array_len; i++) {
       if (i > 0 && !append(b, ", ")) return 0;
-      if (!scalar(b, v->array_items[i])) return 0;
+      if (!json(b, v->array_items[i])) return 0;
     }
     return append(b, "]");
   }
-  return append(b, "{}");
+  return json(b, v);
 }
 
 static int json(Builder *b, const ObjValue *v) {

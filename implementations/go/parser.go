@@ -19,6 +19,14 @@ func Parse(text string) (DocumentNode, error) {
 }
 
 func (p *parser) parse() (DocumentNode, error) {
+	if p.cur.typ == tokDo {
+		if err := p.eat(tokDo); err != nil { return DocumentNode{}, err }
+		root, err := p.parseArray()
+		if err != nil { return DocumentNode{}, err }
+		if p.cur.typ != tokEOF { return DocumentNode{}, p.err("unexpected token after root array") }
+		return DocumentNode{NodeKind: "document", Blocks: []BlockNode{}, RootValue: root}, nil
+	}
+
 	blocks := []BlockNode{}
 	for p.cur.typ != tokEOF {
 		b, err := p.parseBlock()
@@ -35,36 +43,70 @@ func (p *parser) parseBlock() (BlockNode, error) {
 	if p.cur.typ == tokString { v := p.cur.value; arg = &v; _ = p.eat(tokString) }
 	if err := p.eat(tokDo); err != nil { return BlockNode{}, err }
 
+	props, blocks, named, err := p.parseBlockBody()
+	if err != nil { return BlockNode{}, err }
+	if err := p.eat(tokEnd); err != nil { return BlockNode{}, err }
+	b := BlockNode{NodeKind: "block", Name: name, Argument: arg, Properties: props, Blocks: blocks}
+	if len(named) > 0 { b.NamedBlocks = named }
+	return b, nil
+}
+
+func (p *parser) parseAnonymousBlock() (BlockNode, error) {
+	if err := p.eat(tokDo); err != nil { return BlockNode{}, err }
+	props, blocks, named, err := p.parseBlockBody()
+	if err != nil { return BlockNode{}, err }
+	if err := p.eat(tokEnd); err != nil { return BlockNode{}, err }
+	b := BlockNode{NodeKind: "block", Name: "", Properties: props, Blocks: blocks}
+	if len(named) > 0 { b.NamedBlocks = named }
+	return b, nil
+}
+
+func (p *parser) parseBlockBody() (map[string]Node, map[string]BlockNode, []BlockNode, error) {
 	props := map[string]Node{}
 	blocks := map[string]BlockNode{}
 	named := []BlockNode{}
 	seen := map[string]bool{}
 
 	for p.cur.typ != tokEnd {
-		if p.cur.typ == tokEOF { return BlockNode{}, p.err("missing end") }
-		if p.cur.typ != tokIdentifier { return BlockNode{}, p.err("expected identifier") }
-		next, err := p.peek()
-		if err != nil { return BlockNode{}, err }
-		if next.typ == tokDo || next.typ == tokString {
+		if p.cur.typ == tokEOF { return nil, nil, nil, p.err("missing end") }
+		if p.cur.typ != tokIdentifier { return nil, nil, nil, p.err("expected identifier") }
+
+		next, err := p.peekAt(1)
+		if err != nil { return nil, nil, nil, err }
+
+		if next.typ == tokDo {
+			afterDo, err := p.peekAt(2)
+			if err != nil { return nil, nil, nil, err }
+			if afterDo.typ == tokLBracket {
+				key := p.cur.value
+				if err := p.eat(tokIdentifier); err != nil { return nil, nil, nil, err }
+				if err := p.ensureKeyValid(key, seen); err != nil { return nil, nil, nil, err }
+				if err := p.eat(tokDo); err != nil { return nil, nil, nil, err }
+				v, err := p.parseArray()
+				if err != nil { return nil, nil, nil, err }
+				props[key] = v
+				if err := p.eat(tokEnd); err != nil { return nil, nil, nil, err }
+			} else {
+				child, err := p.parseBlock()
+				if err != nil { return nil, nil, nil, err }
+				if child.Argument != nil { named = append(named, child) } else { blocks[child.Name] = child }
+			}
+		} else if next.typ == tokString {
 			child, err := p.parseBlock()
-			if err != nil { return BlockNode{}, err }
-			if child.Argument != nil {
-				named = append(named, child)
-			} else { blocks[child.Name] = child }
+			if err != nil { return nil, nil, nil, err }
+			if child.Argument != nil { named = append(named, child) } else { blocks[child.Name] = child }
 		} else if next.typ == tokEqual || next.typ == tokDot {
 			k, err := p.parseKey()
-			if err != nil { return BlockNode{}, err }
-			if err = p.ensureKeyValid(k, seen); err != nil { return BlockNode{}, err }
-			if err = p.eat(tokEqual); err != nil { return BlockNode{}, err }
+			if err != nil { return nil, nil, nil, err }
+			if err = p.ensureKeyValid(k, seen); err != nil { return nil, nil, nil, err }
+			if err = p.eat(tokEqual); err != nil { return nil, nil, nil, err }
 			v, err := p.parseValue()
-			if err != nil { return BlockNode{}, err }
+			if err != nil { return nil, nil, nil, err }
 			props[k] = v
-		} else { return BlockNode{}, p.err("invalid statement") }
+		} else { return nil, nil, nil, p.err("invalid statement") }
 	}
-	if err := p.eat(tokEnd); err != nil { return BlockNode{}, err }
-	b := BlockNode{NodeKind: "block", Name: name, Argument: arg, Properties: props, Blocks: blocks}
-	if len(named) > 0 { b.NamedBlocks = named }
-	return b, nil
+
+	return props, blocks, named, nil
 }
 
 func (p *parser) parseKey() (string, error) {
@@ -94,6 +136,10 @@ func (p *parser) parseValue() (Node, error) {
 		return nil, p.err("invalid bare value")
 	case tokLBracket:
 		return p.parseArray()
+	case tokDo:
+		b, err := p.parseAnonymousBlock()
+		if err != nil { return nil, err }
+		return b, nil
 	default:
 		return nil, p.err("unexpected value")
 	}
@@ -123,11 +169,19 @@ func (p *parser) eat(tt tokenType) error {
 	p.cur = n
 	return nil
 }
-func (p *parser) peek() (token, error) {
+func (p *parser) peekAt(offset int) (token, error) {
 	st := p.lex.snapshot()
-	t, err := p.lex.nextToken()
+	t := p.cur
+	var err error
+	for i := 0; i < offset; i++ {
+		t, err = p.lex.nextToken()
+		if err != nil {
+			p.lex.restore(st)
+			return token{}, err
+		}
+	}
 	p.lex.restore(st)
-	return t, err
+	return t, nil
 }
 func (p *parser) err(msg string) error { return &ParseError{Message: msg, Line: p.cur.line, Column: p.cur.col} }
 

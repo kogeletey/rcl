@@ -19,6 +19,8 @@ int main(void) {
   const char *src =
       "root do\n"
       "  tls.cert = \"/x\"\n"
+      "  tests do [do name = \"smoke\" end, 1] end\n"
+      "  legacy = [1, 2]\n"
       "  service \"api\" do\n"
       "    title = \"My Name\"\n"
       "    ports = [1, 2, false]\n"
@@ -32,6 +34,8 @@ int main(void) {
   char *hcl;
   char *fmt;
   RclDocument *doc2;
+  RclDocument *doc3;
+  char *json2;
   if (doc == NULL || !err.ok) return 1;
 
   json = rcl_to_object_json(doc);
@@ -43,9 +47,18 @@ int main(void) {
   if (!contains(toml, "[root.services.api]")) return 1;
   if (!contains(yaml, "services:")) return 1;
   if (!contains(hcl, "services {")) return 1;
+  if (!contains(fmt, "tests do [do name = \"smoke\" end, 1] end")) return 1;
+  if (!contains(fmt, "legacy do [1, 2] end")) return 1;
 
   doc2 = rcl_parse(fmt, &err);
   if (doc2 == NULL || !err.ok) return 1;
+
+  doc3 = rcl_parse("do [do type = \"smoke\" end, \"string\", [1, 2, 3]]", &err);
+  if (doc3 == NULL || !err.ok) return 1;
+  json2 = rcl_to_object_json(doc3);
+  if (!contains(json2, "\"root\":[") || !contains(json2, "\"type\":\"smoke\"") || !contains(json2, "\"string\"")) return 1;
+  rcl_document_free(doc3);
+  rcl_string_free(json2);
 
   if (!expect_parse_error("x do\n  name = value\nend\n", "invalid bare identifier value")) return 1;
   if (!expect_parse_error("x do\n  arr = [1,]\nend\n", "trailing comma in array")) return 1;
@@ -55,6 +68,9 @@ int main(void) {
   if (!expect_parse_error("x do\n  s = \"bad\\q\"\nend\n", "invalid escape")) return 1;
   if (!expect_parse_error("x do\n  s = 'bad'\nend\n", "single-quoted string")) return 1;
   if (!expect_parse_error("x do\n", "missing end")) return 1;
+  if (!expect_parse_error("x do\n  tests do [\"a\", \"b\"]\nend\n", "missing end")) return 1;
+  if (!expect_parse_error("do [\"a\", \"b\"", "missing ]")) return 1;
+  if (!expect_parse_error("x do\n  tests = [do name = \"broken\"]\nend\n", "unexpected token")) return 1;
 
   rcl_document_free(doc);
   rcl_document_free(doc2);

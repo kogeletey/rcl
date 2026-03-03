@@ -11,6 +11,13 @@ export class Parser {
   }
 
   parse(): DocumentNode {
+    if (this.current.type === TokenType.Do) {
+      this.eat(TokenType.Do);
+      const rootValue = this.parseArray();
+      if (this.current.type !== TokenType.EOF) throw this.err("unexpected token after root array");
+      return { kind: "document", blocks: [], root_value: rootValue };
+    }
+
     const blocks: BlockNode[] = [];
     while (this.current.type !== TokenType.EOF) blocks.push(this.parseBlock());
     return { kind: "document", blocks };
@@ -28,22 +35,53 @@ export class Parser {
 
     this.eat(TokenType.Do);
 
+    const { properties, blocks, namedBlocks } = this.parseBlockBody();
+
+    this.eat(TokenType.End);
+    const block: BlockNode = { kind: "block", name, properties, blocks };
+    if (argument !== undefined) block.argument = argument;
+    if (namedBlocks.length > 0) block.named_blocks = namedBlocks;
+    return block;
+  }
+
+  private parseAnonymousBlock(): BlockNode {
+    this.eat(TokenType.Do);
+    const { properties, blocks, namedBlocks } = this.parseBlockBody();
+    this.eat(TokenType.End);
+    const block: BlockNode = { kind: "block", name: "", properties, blocks };
+    if (namedBlocks.length > 0) block.named_blocks = namedBlocks;
+    return block;
+  }
+
+  private parseBlockBody(): { properties: Record<string, AstNode>; blocks: Record<string, BlockNode>; namedBlocks: BlockNode[] } {
     const properties: Record<string, AstNode> = {};
     const blocks: Record<string, BlockNode> = {};
     const namedBlocks: BlockNode[] = [];
     const seenKeys = new Set<string>();
 
     while (this.current.type !== TokenType.End) {
-      const curType = this.current.type;
-      if (curType === TokenType.EOF) throw this.err("missing 'end' for block");
-      if (curType !== TokenType.Identifier) throw this.err(`expected identifier, got ${this.current.type}`);
+      if (this.current.type === TokenType.EOF) throw this.err("missing 'end' for block");
+      if (this.current.type !== TokenType.Identifier) throw this.err(`expected identifier, got ${this.current.type}`);
 
       const next = this.peekToken();
-      if (next.type === TokenType.Do || next.type === TokenType.String) {
+      if (next.type === TokenType.Do) {
+        const afterDo = this.peekToken(2);
+        if (afterDo.type === TokenType.LBracket) {
+          const key = this.current.value;
+          this.eat(TokenType.Identifier);
+          this.ensurePropertyKeyValid(key, seenKeys);
+          this.eat(TokenType.Do);
+          properties[key] = this.parseArray();
+          this.eat(TokenType.End);
+        } else {
+          const child = this.parseBlock();
+          if (child.argument) namedBlocks.push(child);
+          else blocks[child.name] = child;
+        }
+      } else if (next.type === TokenType.String) {
         const child = this.parseBlock();
-        if (child.argument) {
-          namedBlocks.push(child);
-        } else blocks[child.name] = child;
+        if (child.argument) namedBlocks.push(child);
+        else blocks[child.name] = child;
       } else if (next.type === TokenType.Equal || next.type === TokenType.Dot) {
         const key = this.parsePropertyKey();
         this.ensurePropertyKeyValid(key, seenKeys);
@@ -52,11 +90,7 @@ export class Parser {
       } else throw this.err(`invalid statement after '${this.current.value}'`);
     }
 
-    this.eat(TokenType.End);
-    const block: BlockNode = { kind: "block", name, properties, blocks };
-    if (argument !== undefined) block.argument = argument;
-    if (namedBlocks.length > 0) block.named_blocks = namedBlocks;
-    return block;
+    return { properties, blocks, namedBlocks };
   }
 
   private parsePropertyKey(): string {
@@ -88,6 +122,7 @@ export class Parser {
       throw this.err(`invalid bare value '${v}'`);
     }
     if (this.current.type === TokenType.LBracket) return this.parseArray();
+    if (this.current.type === TokenType.Do) return this.parseAnonymousBlock();
     throw this.err(`unexpected token ${this.current.type}`);
   }
 
@@ -114,9 +149,10 @@ export class Parser {
     this.current = this.lexer.nextToken();
   }
 
-  private peekToken(): Token {
+  private peekToken(offset = 1): Token {
     const st = this.lexer.snapshot();
-    const tok = this.lexer.nextToken();
+    let tok = this.current;
+    for (let i = 0; i < offset; i += 1) tok = this.lexer.nextToken();
     this.lexer.restore(st);
     return tok;
   }

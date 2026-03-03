@@ -69,3 +69,34 @@ test("strict key/value edges", () => {
     assert.equal(res.ok, false);
   }
 });
+
+test("supports named/root arrays and anonymous block array elements", () => {
+  const named = [
+    "config do",
+    "  tests do [",
+    "    do",
+    "      name = \"case-1\"",
+    "    end,",
+    "    \"string\"",
+    "  ] end",
+    "end",
+  ].join("\n");
+  const namedAst = parse(named);
+  const namedObj = toObject(namedAst);
+  assert.equal((((namedObj.config as any).tests as any[])[0] as any).name, "case-1");
+  assert.equal((((namedObj.config as any).tests as any[])[1] as any), "string");
+  assert.match(format(namedAst), /tests do \[/);
+
+  const root = [
+    "do [",
+    "  do",
+    "    name = \"root-item\"",
+    "  end,",
+    "  \"x\"",
+    "]",
+  ].join("\n");
+  const rootAst = parse(root);
+  const rootObj = toObject(rootAst);
+  assert.equal(((rootObj.root as any[])[0] as any).name, "root-item");
+  assert.equal((rootObj.root as any[])[1], "x");
+});

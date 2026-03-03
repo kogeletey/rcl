@@ -9,6 +9,8 @@ static ObjValue *obj_new(ObjKind kind) {
   return v;
 }
 
+static ObjValue *project_block(const RclBlock *block);
+
 void obj_free(ObjValue *value) {
   size_t i;
   if (value == NULL) return;
@@ -25,16 +27,25 @@ void obj_free(ObjValue *value) {
 
 static ObjValue *obj_from_ast(const RclValue *value) {
   size_t i;
+  ObjValue *child;
   ObjValue *out = obj_new((ObjKind)value->kind);
   if (out == NULL) return NULL;
   if (value->kind == RCL_VALUE_STRING) out->string_value = rcl_strdup(value->string_value);
   else if (value->kind == RCL_VALUE_NUMBER) out->number_value = value->number_value;
   else if (value->kind == RCL_VALUE_BOOLEAN) out->bool_value = value->bool_value;
-  else {
+  else if (value->kind == RCL_VALUE_ARRAY) {
     out->array_items = (ObjValue **)calloc(value->array_value.len, sizeof(ObjValue *));
     if (out->array_items == NULL) return NULL;
     out->array_len = value->array_value.len;
     for (i = 0; i < out->array_len; i++) out->array_items[i] = obj_from_ast(value->array_value.items[i]);
+  } else {
+    child = project_block(value->block_value);
+    out->kind = OBJ_OBJECT;
+    out->entries = child->entries;
+    out->entry_len = child->entry_len;
+    child->entries = NULL;
+    child->entry_len = 0;
+    obj_free(child);
   }
   return out;
 }
@@ -133,6 +144,10 @@ ObjValue *rcl_project(const RclDocument *document) {
   size_t i;
   ObjValue *root = obj_new(OBJ_OBJECT);
   if (root == NULL) return NULL;
+  if (document->has_root_value) {
+    obj_set(root, "root", obj_from_ast(document->root_value));
+    return root;
+  }
   for (i = 0; i < document->block_count; i++) {
     if (document->blocks[i]->argument == NULL) obj_set(root, document->blocks[i]->name, project_block(document->blocks[i]));
     else {

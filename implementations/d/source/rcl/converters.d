@@ -21,6 +21,8 @@ JSONValue nodeToVal(AstNode n) {
     case NodeKind.boolv: return JSONValue(n.bval);
     case NodeKind.arr:
       JSONValue[] items; foreach (e; n.elems) items ~= nodeToVal(e); return JSONValue(items);
+    case NodeKind.block:
+      return blockToObject(*n.blockVal);
   }
 }
 
@@ -60,6 +62,10 @@ JSONValue blockToObject(BlockNode b) {
 
 JSONValue toObjectDocument(Document d) {
   JSONValue obj = JSONValue(string[string].init);
+  if (d.hasRootValue) {
+    obj.object["root"] = nodeToVal(d.rootValue);
+    return obj;
+  }
   foreach (b; d.blocks) {
     if (b.hasArg) {
       JSONValue m = JSONValue(string[string].init);
@@ -82,7 +88,7 @@ string scalar(JSONValue v) {
       string[] parts;
       foreach (x; v.array) parts ~= scalar(x);
       return "[" ~ parts.join(", ") ~ "]";
-    case JSONType.object: return "{}";
+    case JSONType.object: return v.toString();
     case JSONType.null_: return "null";
     default: return "null";
   }

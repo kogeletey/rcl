@@ -71,7 +71,43 @@ class ParserTest {
       "x do\n  arr = [1,]\nend",
       "x do\n  a = 1\n  a = 2\nend",
       "x do\n  a = 1\n  a.b = 2\nend",
+      "do [1] end",
+      "x do\n  arr do [1]\n  y = 1\nend",
     )
     bad.forEach { src -> assertFailsWith<ParseError> { Parser.parse(src) } }
+  }
+
+  @Test
+  fun namedArrayRootArrayAndAnonymousBlockElements() {
+    val namedSrc = """
+      config do
+        tests do [
+          do
+            name = "case-1"
+          end,
+          "string"
+        ] end
+      end
+    """.trimIndent()
+    val namedObj = Converters.toObject(Parser.parse(namedSrc))
+    val config = namedObj["config"] as Map<*, *>
+    val tests = config["tests"] as List<*>
+    val first = tests[0] as Map<*, *>
+    assertEquals("case-1", first["name"])
+    assertEquals("string", tests[1])
+
+    val rootSrc = """
+      do [
+        do
+          name = "root-item"
+        end,
+        "x"
+      ]
+    """.trimIndent()
+    val rootObj = Converters.toObject(Parser.parse(rootSrc))
+    val root = rootObj["root"] as List<*>
+    val rootFirst = root[0] as Map<*, *>
+    assertEquals("root-item", rootFirst["name"])
+    assertEquals("x", root[1])
   }
 }

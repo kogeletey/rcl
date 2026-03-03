@@ -7,6 +7,9 @@ import (
 )
 
 func Format(doc DocumentNode) (string, error) {
+	if arr, ok := doc.RootValue.(ArrayNode); ok {
+		return "do " + formatValue(arr), nil
+	}
 	out := []string{}
 	for _, b := range doc.Blocks { out = append(out, formatBlock(b, 0)) }
 	return strings.Join(out, "\n\n"), nil
@@ -33,6 +36,8 @@ func formatValue(n Node) string {
 		parts := []string{}
 		for _, e := range v.Elements { parts = append(parts, formatValue(e)) }
 		return "[" + strings.Join(parts, ", ") + "]"
+	case BlockNode:
+		return formatAnonymousBlock(v)
 	default:
 		return ""
 	}
@@ -46,7 +51,14 @@ func formatBlock(b BlockNode, indent int) string {
 	propKeys := make([]string, 0, len(b.Properties))
 	for k := range b.Properties { propKeys = append(propKeys, k) }
 	sort.Strings(propKeys)
-	for _, k := range propKeys { lines = append(lines, pad+"  "+k+" = "+formatValue(b.Properties[k])) }
+	for _, k := range propKeys {
+		switch b.Properties[k].(type) {
+		case ArrayNode:
+			lines = append(lines, pad+"  "+k+" do "+formatValue(b.Properties[k])+" end")
+		default:
+			lines = append(lines, pad+"  "+k+" = "+formatValue(b.Properties[k]))
+		}
+	}
 	seen := map[string]bool{}
 	blockKeys := make([]string, 0, len(b.Blocks))
 	for k := range b.Blocks { blockKeys = append(blockKeys, k) }
@@ -68,4 +80,36 @@ func formatBlock(b BlockNode, indent int) string {
 	}
 	lines = append(lines, pad+"end")
 	return strings.Join(lines, "\n")
+}
+
+func formatAnonymousBlock(b BlockNode) string {
+	parts := []string{}
+	propKeys := make([]string, 0, len(b.Properties))
+	for k := range b.Properties { propKeys = append(propKeys, k) }
+	sort.Strings(propKeys)
+	for _, k := range propKeys { parts = append(parts, k+" = "+formatValue(b.Properties[k])) }
+	blockKeys := make([]string, 0, len(b.Blocks))
+	for k := range b.Blocks { blockKeys = append(blockKeys, k) }
+	sort.Strings(blockKeys)
+	for _, k := range blockKeys { parts = append(parts, formatInlineBlock(b.Blocks[k])) }
+	for _, c := range b.NamedBlocks { parts = append(parts, formatInlineBlock(c)) }
+	if len(parts) == 0 { return "do end" }
+	return "do " + strings.Join(parts, " ") + " end"
+}
+
+func formatInlineBlock(b BlockNode) string {
+	head := b.Name + " do"
+	if b.Argument != nil { head = b.Name + " " + quote(*b.Argument) + " do" }
+	parts := []string{}
+	propKeys := make([]string, 0, len(b.Properties))
+	for k := range b.Properties { propKeys = append(propKeys, k) }
+	sort.Strings(propKeys)
+	for _, k := range propKeys { parts = append(parts, k+" = "+formatValue(b.Properties[k])) }
+	blockKeys := make([]string, 0, len(b.Blocks))
+	for k := range b.Blocks { blockKeys = append(blockKeys, k) }
+	sort.Strings(blockKeys)
+	for _, k := range blockKeys { parts = append(parts, formatInlineBlock(b.Blocks[k])) }
+	for _, c := range b.NamedBlocks { parts = append(parts, formatInlineBlock(c)) }
+	if len(parts) == 0 { return head + " end" }
+	return head + " " + strings.Join(parts, " ") + " end"
 }

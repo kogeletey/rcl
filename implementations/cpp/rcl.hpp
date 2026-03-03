@@ -2,12 +2,14 @@
 #define RCL_CPP_HPP
 
 #include <cstddef>
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace rcl {
 
-enum class ValueKind { String, Number, Boolean, Array };
+enum class ValueKind { String, Number, Boolean, Array, Block };
 
 struct Value {
   ValueKind kind = ValueKind::String;
@@ -15,6 +17,7 @@ struct Value {
   double number_value = 0.0;
   bool bool_value = false;
   std::vector<Value> array_value;
+  std::shared_ptr<Block> block_value;
 };
 
 struct Property {
@@ -41,6 +44,8 @@ struct Block {
 
 struct Document {
   std::vector<Block*> blocks;
+  bool has_root_value = false;
+  Value root_value;
 };
 
 struct Error {

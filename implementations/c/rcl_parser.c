@@ -47,11 +47,42 @@ static int key_conflict(char **keys, size_t count, const char *key) {
 
 static RclBlock *parse_block(Parser *p);
 
-static int parse_statement(Parser *p, RclBlock *block, char ***keys, size_t *key_count) {
+int parser_parse_statement(Parser *p, RclBlock *block, char ***keys, size_t *key_count) {
+  Token t2;
   if (!parser_ensure(p, TOK_IDENTIFIER, "unexpected token")) return 0;
   if (!p->has_peek) {
     if (!lexer_next(&p->lexer, &p->peek, p->error)) return 0;
     p->has_peek = 1;
+  }
+  if (p->peek.kind == TOK_DO) {
+    Lexer lx = p->lexer;
+    if (!lexer_next(&lx, &t2, p->error)) return 0;
+    if (t2.kind == TOK_LBRACKET) {
+      RclStatement st;
+      char *key = rcl_strdup(p->current.lexeme);
+      if (key == NULL) return 0;
+      if (key_conflict(*keys, *key_count, key)) {
+        rcl_set_error(p->error, "duplicate key or key-path prefix conflict", p->current.line, p->current.column);
+        free(key);
+        return 0;
+      }
+      if (!parser_next(p) || !parser_ensure(p, TOK_DO, "unexpected token") || !parser_next(p)) return 0;
+      st.kind = RCL_STATEMENT_PROPERTY;
+      st.property.key = key;
+      st.property.value = parser_parse_value(p);
+      if (st.property.value == NULL || st.property.value->kind != RCL_VALUE_ARRAY) {
+        rcl_set_error(p->error, "expected array after do", p->current.line, p->current.column);
+        return 0;
+      }
+      if (!parser_ensure(p, TOK_END, "missing end")) return 0;
+      if (!parser_next(p) || !append_statement(block, st)) return 0;
+      *keys = (char **)realloc(*keys, sizeof(char *) * (*key_count + 1));
+      if (*keys == NULL) return 0;
+      (*keys)[(*key_count)++] = rcl_strdup(key);
+      token_free(&t2);
+      return 1;
+    }
+    token_free(&t2);
   }
   if (p->peek.kind == TOK_EQUAL || p->peek.kind == TOK_DOT) {
     RclStatement st;
@@ -83,6 +114,17 @@ static int parse_statement(Parser *p, RclBlock *block, char ***keys, size_t *key
   return 0;
 }
 
+int parser_parse_block_body(Parser *p, RclBlock *block, char ***keys, size_t *key_count) {
+  while (p->current.kind != TOK_END) {
+    if (p->current.kind == TOK_EOF) {
+      rcl_set_error(p->error, "missing end", p->current.line, p->current.column);
+      return 0;
+    }
+    if (!parser_parse_statement(p, block, keys, key_count)) return 0;
+  }
+  return 1;
+}
+
 static RclBlock *parse_block(Parser *p) {
   RclBlock *block = (RclBlock *)calloc(1, sizeof(RclBlock));
   char **keys = NULL;
@@ -96,13 +138,7 @@ static RclBlock *parse_block(Parser *p) {
   }
   if (!parser_ensure(p, TOK_DO, "unexpected token")) return NULL;
   if (!parser_next(p)) return NULL;
-  while (p->current.kind != TOK_END) {
-    if (p->current.kind == TOK_EOF) {
-      rcl_set_error(p->error, "missing end", p->current.line, p->current.column);
-      return NULL;
-    }
-    if (!parse_statement(p, block, &keys, &key_count)) return NULL;
-  }
+  if (!parser_parse_block_body(p, block, &keys, &key_count)) return NULL;
   if (!parser_next(p)) return NULL;
   return block;
 }
@@ -123,6 +159,21 @@ RclDocument *parse_document(const char *text, RclError *error) {
   parser.has_peek = 0;
   parser.error = error;
   if (!parser_next(&parser)) return NULL;
+  if (parser.current.kind == TOK_DO) {
+    doc->has_root_value = 1;
+    if (!parser_next(&parser) || parser.current.kind != TOK_LBRACKET) {
+      rcl_set_error(error, "unexpected token", parser.current.line, parser.current.column);
+      return NULL;
+    }
+    doc->root_value = parser_parse_value(&parser);
+    if (doc->root_value == NULL) return NULL;
+    if (parser.current.kind != TOK_EOF) {
+      rcl_set_error(error, "unexpected token after root array", parser.current.line, parser.current.column);
+      return NULL;
+    }
+    token_free(&parser.current);
+    return doc;
+  }
   while (parser.current.kind != TOK_EOF) {
     RclBlock *block = parse_block(&parser);
     RclBlock **next = block == NULL ? NULL : (RclBlock **)realloc(doc->blocks, sizeof(RclBlock *) * (doc->block_count + 1));

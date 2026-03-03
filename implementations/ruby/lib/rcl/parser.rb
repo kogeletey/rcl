@@ -3,6 +3,15 @@ module RCL
   class Parser
     def initialize(text) = (@text = text; @i = 0)
     def parse
+      skip_space
+      if peek_identifier == "do"
+        read_identifier
+        skip_space
+        root = parse_array
+        skip_space
+        raise "unexpected token after root array" unless eof?
+        return { "kind" => "document", "blocks" => [], "root_value" => root }
+      end
       { "kind" => "document", "blocks" => parse_blocks }
     end
     private
@@ -36,10 +45,17 @@ module RCL
         key = read_identifier
         skip_space
         if current == '"' || peek_identifier == "do"
-          child_arg = parse_optional_string
-          expect_identifier("do")
-          child = parse_block_body(key, child_arg)
-          child_arg ? named << child : blocks[key] = child
+          if peek_identifier == "do" && do_array_assignment_start?
+            expect_identifier("do")
+            ensure_key_valid!(key, seen)
+            props[key] = parse_array
+            expect_identifier("end")
+          else
+            child_arg = parse_optional_string
+            expect_identifier("do")
+            child = parse_block_body(key, child_arg)
+            child_arg ? named << child : blocks[key] = child
+          end
         else
           key = read_dotted_key(key)
           ensure_key_valid!(key, seen)
@@ -59,6 +75,10 @@ module RCL
       return { "kind" => "string", "value" => read_string } if current == '"'
       return parse_array if current == "["
       return parse_number if number_start?
+      if peek_identifier == "do"
+        expect_identifier("do")
+        return parse_block_body("", nil)
+      end
       id = peek_identifier
       if id == "true" || id == "false"
         read_identifier
@@ -92,6 +112,20 @@ module RCL
     def parse_optional_string
       skip_space
       current == '"' ? read_string : nil
+    end
+
+    def do_array_assignment_start?
+      j = @i
+      j += 1 while j < @text.length && @text[j].match?(/\s/)
+      return false unless @text[j]&.match?(/[A-Za-z_]/)
+      k = +""
+      while j < @text.length && @text[j].match?(/[A-Za-z0-9_]/)
+        k << @text[j]
+        j += 1
+      end
+      return false unless k == "do"
+      j += 1 while j < @text.length && @text[j].match?(/\s/)
+      @text[j] == "["
     end
 
     def read_dotted_key(key)

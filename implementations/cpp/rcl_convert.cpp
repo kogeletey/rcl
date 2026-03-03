@@ -19,6 +19,8 @@ std::string Escape(const std::string& text) {
   return out;
 }
 
+void Json(const Obj& value, std::string& out);
+
 std::string Scalar(const Obj& value) {
   std::ostringstream out;
   if (value.kind == ObjKind::String) return Escape(value.string_value);
@@ -30,10 +32,15 @@ std::string Scalar(const Obj& value) {
   out << "[";
   for (std::size_t i = 0; i < value.array_value.size(); i++) {
     if (i > 0) out << ", ";
-    out << Scalar(value.array_value[i]);
+    std::string nested;
+    Json(value.array_value[i], nested);
+    out << nested;
   }
   out << "]";
-  return out.str();
+  if (value.kind == ObjKind::Array) return out.str();
+  std::string obj;
+  Json(value, obj);
+  return obj;
 }
 
 void Json(const Obj& value, std::string& out) {

@@ -3,6 +3,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+static RclValue *parse_anonymous_block(Parser *p) {
+  RclValue *value = (RclValue *)calloc(1, sizeof(RclValue));
+  RclBlock *block = (RclBlock *)calloc(1, sizeof(RclBlock));
+  char **keys = NULL;
+  size_t key_count = 0;
+  if (value == NULL || block == NULL) return NULL;
+  value->kind = RCL_VALUE_BLOCK;
+  value->block_value = block;
+  if (!parser_next(p)) return NULL;
+  if (!parser_parse_block_body(p, block, &keys, &key_count)) return NULL;
+  if (!parser_ensure(p, TOK_END, "missing end")) return NULL;
+  if (!parser_next(p)) return NULL;
+  return value;
+}
+
 static RclValue *parse_array(Parser *p) {
   RclValue *value = (RclValue *)calloc(1, sizeof(RclValue));
   if (value == NULL) return NULL;
@@ -36,15 +51,18 @@ static RclValue *parse_array(Parser *p) {
 }
 
 RclValue *parser_parse_value(Parser *p) {
-  RclValue *value = (RclValue *)calloc(1, sizeof(RclValue));
-  if (value == NULL) return NULL;
+  RclValue *value;
   if (p->current.kind == TOK_STRING) {
+    value = (RclValue *)calloc(1, sizeof(RclValue));
+    if (value == NULL) return NULL;
     value->kind = RCL_VALUE_STRING;
     value->string_value = rcl_strdup(p->current.lexeme);
     parser_next(p);
     return value;
   }
   if (p->current.kind == TOK_NUMBER) {
+    value = (RclValue *)calloc(1, sizeof(RclValue));
+    if (value == NULL) return NULL;
     value->kind = RCL_VALUE_NUMBER;
     value->number_value = strtod(p->current.lexeme, NULL);
     parser_next(p);
@@ -52,6 +70,8 @@ RclValue *parser_parse_value(Parser *p) {
   }
   if (p->current.kind == TOK_IDENTIFIER) {
     if (strcmp(p->current.lexeme, "true") == 0 || strcmp(p->current.lexeme, "false") == 0) {
+      value = (RclValue *)calloc(1, sizeof(RclValue));
+      if (value == NULL) return NULL;
       value->kind = RCL_VALUE_BOOLEAN;
       value->bool_value = strcmp(p->current.lexeme, "true") == 0;
       parser_next(p);
@@ -60,6 +80,7 @@ RclValue *parser_parse_value(Parser *p) {
     rcl_set_error(p->error, "invalid bare identifier value", p->current.line, p->current.column);
     return NULL;
   }
+  if (p->current.kind == TOK_DO) return parse_anonymous_block(p);
   if (p->current.kind == TOK_LBRACKET) return parse_array(p);
   rcl_set_error(p->error, "unexpected token", p->current.line, p->current.column);
   return NULL;

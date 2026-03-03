@@ -42,6 +42,7 @@ export interface BlockNode extends BaseNode {
 export interface DocumentNode extends BaseNode {
   kind: "document";
   blocks: BlockNode[];
+  root_value?: AstNode;
 }
 
 export type AstNode = StringNode | NumberNode | BooleanNode | ArrayNode | BlockNode | DocumentNode;

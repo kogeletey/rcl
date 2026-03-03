@@ -8,6 +8,12 @@ class Parser private constructor(private val lexer: Lexer) {
   }
 
   fun parse(): DocumentNode {
+    if (current.type == TokenType.Do) {
+      eat(TokenType.Do)
+      val rootValue = parseArray()
+      if (current.type != TokenType.EOF) throw error("unexpected token after root array")
+      return DocumentNode(blocks = emptyList(), rootValue = rootValue)
+    }
     val blocks = mutableListOf<BlockNode>()
     while (current.type != TokenType.EOF) blocks += parseBlock()
     return DocumentNode(blocks = blocks)
@@ -21,6 +27,19 @@ class Parser private constructor(private val lexer: Lexer) {
     if (current.type == TokenType.String) { argument = current.value; eat(TokenType.String) }
     eat(TokenType.Do)
 
+    val out = parseBlockBody(name, argument)
+    eat(TokenType.End)
+    return out
+  }
+
+  private fun parseAnonymousBlock(): BlockNode {
+    eat(TokenType.Do)
+    val out = parseBlockBody("", null)
+    eat(TokenType.End)
+    return out
+  }
+
+  private fun parseBlockBody(name: String, argument: String?): BlockNode {
     val properties = linkedMapOf<String, AstNode>()
     val blocks = linkedMapOf<String, BlockNode>()
     val named = mutableListOf<BlockNode>()
@@ -30,7 +49,22 @@ class Parser private constructor(private val lexer: Lexer) {
       if (current.type == TokenType.EOF) throw error("missing end")
       if (current.type != TokenType.Identifier) throw error("expected identifier")
       when (peekToken().type) {
-        TokenType.Do, TokenType.String -> {
+        TokenType.Do -> {
+          if (peekToken(2).type == TokenType.LBracket) {
+            val key = current.value
+            eat(TokenType.Identifier)
+            ensureKeyValid(key, seen)
+            eat(TokenType.Do)
+            properties[key] = parseArray()
+            eat(TokenType.End)
+          } else {
+            val child = parseBlock()
+            if (child.argument != null) {
+              named += child
+            } else blocks[child.name] = child
+          }
+        }
+        TokenType.String -> {
           val child = parseBlock()
           if (child.argument != null) {
             named += child
@@ -45,8 +79,6 @@ class Parser private constructor(private val lexer: Lexer) {
         else -> throw error("invalid statement")
       }
     }
-
-    eat(TokenType.End)
     return BlockNode(name = name, argument = argument, properties = properties, blocks = blocks, namedBlocks = named)
   }
 
@@ -75,6 +107,7 @@ class Parser private constructor(private val lexer: Lexer) {
       }
     }
     TokenType.LBracket -> parseArray()
+    TokenType.Do -> parseAnonymousBlock()
     else -> throw error("unexpected value")
   }
 
@@ -98,9 +131,10 @@ class Parser private constructor(private val lexer: Lexer) {
     current = lexer.nextToken()
   }
 
-  private fun peekToken(): Token {
+  private fun peekToken(offset: Int = 1): Token {
     val st = lexer.snapshot()
-    val tok = lexer.nextToken()
+    var tok = current
+    repeat(offset) { tok = lexer.nextToken() }
     lexer.restore(st)
     return tok
   }

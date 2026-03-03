@@ -34,7 +34,7 @@ run_impl_tests() {
       (cd "$ROOT_DIR/implementations/crystal" && crystal spec)
       ;;
     csharp)
-      (cd "$ROOT_DIR/implementations/csharp" && mcs -out:test_bin src/*.cs test/Test.cs && mono test_bin)
+      (cd "$ROOT_DIR/implementations/csharp" && dotnet run --nologo --configuration Release --project RclE2E.csproj)
       ;;
     d)
       (cd "$ROOT_DIR/implementations/d" && ldc2 -i -Isource source/rcl/package.d test/test.d -of=test_bin && ./test_bin)

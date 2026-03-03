@@ -4,6 +4,8 @@ namespace rcl {
 
 namespace {
 
+Obj ProjectBlock(const Block& block);
+
 Obj FromValue(const Value& value) {
   Obj out;
   if (value.kind == ValueKind::String) {
@@ -15,9 +17,11 @@ Obj FromValue(const Value& value) {
   } else if (value.kind == ValueKind::Boolean) {
     out.kind = ObjKind::Boolean;
     out.bool_value = value.bool_value;
-  } else {
+  } else if (value.kind == ValueKind::Array) {
     out.kind = ObjKind::Array;
     for (const auto& item : value.array_value) out.array_value.push_back(FromValue(item));
+  } else {
+    out = ProjectBlock(*value.block_value);
   }
   return out;
 }
@@ -73,6 +77,10 @@ std::string named_base(const std::string& name) {
 Obj project(const Document& doc) {
   Obj root;
   root.kind = ObjKind::Object;
+  if (doc.has_root_value) {
+    root.object_value["root"] = FromValue(doc.root_value);
+    return root;
+  }
   for (const auto* block : doc.blocks) {
     Obj child = ProjectBlock(*block);
     if (!block->has_argument) root.object_value[block->name] = child;

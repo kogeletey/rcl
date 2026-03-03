@@ -41,5 +41,19 @@ void main() {
     expectFail('x do\n  s = "bad\nend\n', 'unterminated string');
     expectFail('x do\n  s = \'bad\'\nend\n', 'single-quoted string usage');
     expectFail('x do\n  @ = 1\nend\n', 'unexpected character');
+    expectFail('do [1] end\n', 'unexpected token after root array');
+    expectFail('x do\n  arr do [1]\n  y = 1\nend\n', 'unexpected token');
+  });
+
+  test('named array root array and anonymous block array elements', () {
+    const namedSrc = 'config do\n  tests do [\n    do\n      name = "case-1"\n    end,\n    "string"\n  ] end\nend\n';
+    final namedObj = RCL.toObject(namedSrc);
+    expect(namedObj['config']['tests'][0]['name'], 'case-1');
+    expect(namedObj['config']['tests'][1], 'string');
+
+    const rootSrc = 'do [\n  do\n    name = "root-item"\n  end,\n  "x"\n]\n';
+    final rootObj = RCL.toObject(rootSrc);
+    expect(rootObj['root'][0]['name'], 'root-item');
+    expect(rootObj['root'][1], 'x');
   });
 }

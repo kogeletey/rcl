@@ -34,5 +34,17 @@ fails("x do\n  a = [1,2\nend\n", 'missing ]');
 fails("x do\n  s = \"bad\nend\n", 'unterminated string');
 fails("x do\n  s = 'bad'\nend\n", 'single-quoted string usage');
 fails("x do\n  @ = 1\nend\n", 'unexpected character');
+fails("do [1] end\n", 'unexpected token after root array');
+fails("x do\n  arr do [1]\n  y = 1\nend\n", 'unexpected token');
+
+$namedArraySrc = "config do\n  tests do [\n    do\n      name = \"case-1\"\n    end,\n    \"string\"\n  ] end\nend\n";
+$namedObj = RCL::toObject($namedArraySrc);
+ok($namedObj['config']['tests'][0]['name'] === 'case-1', 'named array anonymous block item');
+ok($namedObj['config']['tests'][1] === 'string', 'named array scalar item');
+
+$rootArraySrc = "do [\n  do\n    name = \"root-item\"\n  end,\n  \"x\"\n]\n";
+$rootObj = RCL::toObject($rootArraySrc);
+ok($rootObj['root'][0]['name'] === 'root-item', 'root array anonymous block item');
+ok($rootObj['root'][1] === 'x', 'root array scalar item');
 
 echo "ok\n";

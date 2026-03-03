@@ -41,6 +41,15 @@ bool KeyConflict(const std::vector<std::string>& keys, const std::string& key) {
 }
 
 bool ParseValue(Parser& p, Value& out);
+bool ParseBlockBody(Parser& p, Block& block);
+
+Token PeekNth(const Parser& p, int n) {
+  Parser tmp = p;
+  Error local;
+  tmp.error = &local;
+  while (n-- > 0) if (!Next(tmp)) return Token{};
+  return tmp.current;
+}
 
 bool ParseArray(Parser& p, Value& out) {
   out.kind = ValueKind::Array;
@@ -84,6 +93,15 @@ bool ParseValue(Parser& p, Value& out) {
     SetError(*p.error, "invalid bare identifier value", p.current.line, p.current.column);
     return false;
   }
+  if (p.current.kind == TokenKind::Do) {
+    auto block = std::make_shared<Block>();
+    out.kind = ValueKind::Block;
+    out.block_value = block;
+    if (!Next(p)) return false;
+    if (!ParseBlockBody(p, *block)) return false;
+    if (!Ensure(p, TokenKind::End, "missing end")) return false;
+    return Next(p);
+  }
   if (p.current.kind == TokenKind::LBracket) return ParseArray(p, out);
   SetError(*p.error, "unexpected token", p.current.line, p.current.column);
   return false;
@@ -102,7 +120,6 @@ bool ParseKey(Parser& p, std::string& key) {
 
 bool ParseBlock(Parser& p, Block*& block) {
   block = new Block;
-  std::vector<std::string> keys;
   block->name = p.current.lexeme;
   if (!Next(p)) return false;
   if (p.current.kind == TokenKind::String) {
@@ -111,6 +128,12 @@ bool ParseBlock(Parser& p, Block*& block) {
     if (!Next(p)) return false;
   }
   if (!Ensure(p, TokenKind::Do, "unexpected token") || !Next(p)) return false;
+  if (!ParseBlockBody(p, *block)) return false;
+  return Next(p);
+}
+
+bool ParseBlockBody(Parser& p, Block& block) {
+  std::vector<std::string> keys;
   while (p.current.kind != TokenKind::End) {
     if (p.current.kind == TokenKind::Eof) {
       SetError(*p.error, "missing end", p.current.line, p.current.column);
@@ -120,6 +143,28 @@ bool ParseBlock(Parser& p, Block*& block) {
     if (!p.has_peek) {
       if (!p.lexer.Next(p.peek, *p.error)) return false;
       p.has_peek = true;
+    }
+    if (p.peek.kind == TokenKind::Do) {
+      const Token t2 = PeekNth(p, 2);
+      if (t2.kind == TokenKind::LBracket) {
+        Statement st;
+        st.kind = StatementKind::Property;
+        st.property.key = p.current.lexeme;
+        if (KeyConflict(keys, st.property.key)) {
+          SetError(*p.error, "duplicate key or key-path prefix conflict", p.current.line, p.current.column);
+          return false;
+        }
+        keys.push_back(st.property.key);
+        if (!Next(p) || !Ensure(p, TokenKind::Do, "unexpected token") || !Next(p)) return false;
+        if (!ParseValue(p, st.property.value)) return false;
+        if (st.property.value.kind != ValueKind::Array) {
+          SetError(*p.error, "expected array after do", p.current.line, p.current.column);
+          return false;
+        }
+        if (!Ensure(p, TokenKind::End, "missing end") || !Next(p)) return false;
+        block.statements.push_back(st);
+        continue;
+      }
     }
     if (p.peek.kind == TokenKind::Equal || p.peek.kind == TokenKind::Dot) {
       Statement st;
@@ -134,18 +179,18 @@ bool ParseBlock(Parser& p, Block*& block) {
       st.property.key = key;
       if (!Ensure(p, TokenKind::Equal, "unexpected token") || !Next(p)) return false;
       if (!ParseValue(p, st.property.value)) return false;
-      block->statements.push_back(st);
+      block.statements.push_back(st);
     } else if (p.peek.kind == TokenKind::Do || p.peek.kind == TokenKind::String) {
       Statement st;
       st.kind = StatementKind::Block;
       if (!ParseBlock(p, st.block)) return false;
-      block->statements.push_back(st);
+      block.statements.push_back(st);
     } else {
       SetError(*p.error, "unexpected token", p.current.line, p.current.column);
       return false;
     }
   }
-  return Next(p);
+  return true;
 }
 
 }
@@ -158,6 +203,24 @@ Document* parse(const std::string& text, Error& error) {
   if (!Next(parser)) {
     delete doc;
     return nullptr;
+  }
+  if (parser.current.kind == TokenKind::Do) {
+    doc->has_root_value = true;
+    if (!Next(parser) || parser.current.kind != TokenKind::LBracket) {
+      SetError(error, "unexpected token", parser.current.line, parser.current.column);
+      free_document(doc);
+      return nullptr;
+    }
+    if (!ParseValue(parser, doc->root_value)) {
+      free_document(doc);
+      return nullptr;
+    }
+    if (parser.current.kind != TokenKind::Eof) {
+      SetError(error, "unexpected token after root array", parser.current.line, parser.current.column);
+      free_document(doc);
+      return nullptr;
+    }
+    return doc;
   }
   while (parser.current.kind != TokenKind::Eof) {
     Block* block = nullptr;

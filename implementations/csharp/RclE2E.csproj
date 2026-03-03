@@ -4,5 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="Rcl.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="test/Test.cs" />
+  </ItemGroup>
 </Project>

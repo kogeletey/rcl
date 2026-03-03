@@ -1,8 +1,9 @@
 module SM = Map.Make(String)
 
 type num = I of int | F of float
-and node = NS of string | NN of num | NB of bool | NA of node list
+and node = NS of string | NN of num | NB of bool | NA of node list | NK of block
 and block = { name:string; arg:string option; props:(string*node) list; blocks:block list; named:block list }
+and document = { blocks:block list; root_value:node option }
 and token = { t:string; v:string; l:int; c:int }
 and lexer = { s:string; mutable p:int; mutable l:int; mutable c:int }
 and value = VS of string | VN of num | VB of bool | VA of value list | VO of value SM.t
@@ -62,7 +63,13 @@ let parse s =
   let lx = {s; p=0; l=1; c=1} in
   let cur = ref (next lx) in
   let eat t = if (!cur).t<>t then err (!cur).l (!cur).c ("Expected "^t^", got "^(!cur).t) else cur := next lx in
-  let peek () = let p,l,c=lx.p,lx.l,lx.c in let t=next lx in lx.p<-p; lx.l<-l; lx.c<-c; t in
+  let peekn n =
+    let p,l,c=lx.p,lx.l,lx.c in
+    let tok = ref !cur in
+    for _ = 1 to n do tok := next lx done;
+    lx.p<-p; lx.l<-l; lx.c<-c; !tok
+  in
+  let peek () = peekn 1 in
   let split_dot k = String.split_on_char '.' k in
   let is_pref a b =
     let rec go x y = match x,y with [],_::_ -> true | hx::tx, hy::ty when hx=hy -> go tx ty | _ -> false in go a b in
@@ -76,11 +83,45 @@ let parse s =
     let k = (!cur).v in eat "IDENT";
     let rec more acc = if (!cur).t="DOT" then (eat "DOT"; if (!cur).t<>"IDENT" then err (!cur).l (!cur).c "Expected identifier after dot"; let v=(!cur).v in eat "IDENT"; more (acc^"."^v)) else acc in
     more k
+  and block_body () =
+    let props,blocks,named,seen = ref [], ref [], ref [], ref [] in
+    while (!cur).t<>"END" do
+      if (!cur).t="EOF" then err (!cur).l (!cur).c "missing 'end' for block";
+      if (!cur).t<>"IDENT" then err (!cur).l (!cur).c ("expected identifier, got "^(!cur).t);
+      let n = peek() in
+      if n.t="DO" then
+        let n2 = peekn 2 in
+        if n2.t="LBRACK" then (
+          let k = (!cur).v in
+          eat "IDENT";
+          ensure seen k;
+          eat "DO";
+          let v = value() in
+          props := !props @ [k, v];
+          eat "END"
+        ) else (
+          let b=block() in
+          if b.arg=None then blocks:=!blocks@[b] else named:=!named@[b]
+        )
+      else if n.t="STRING" then
+        let b=block() in
+        if b.arg=None then blocks:=!blocks@[b] else named:=!named@[b]
+      else if n.t="EQ" || n.t="DOT" then (
+        let k=prop_key() in ensure seen k; eat "EQ"; props := !props @ [k, value()]
+      ) else err (!cur).l (!cur).c ("invalid statement after '"^(!cur).v^"'")
+    done;
+    (!props, !blocks, !named)
+  and anon_block () =
+    eat "DO";
+    let props, blocks, named = block_body () in
+    eat "END";
+    { name = ""; arg = None; props; blocks; named }
   and value () = match (!cur).t with
     | "STRING" -> let v=(!cur).v in eat "STRING"; NS v
     | "NUMBER" -> let v=(!cur).v in eat "NUMBER"; NN (if String.contains v '.' then F (float_of_string v) else I (int_of_string v))
     | "IDENT" -> let v=(!cur).v in eat "IDENT"; if v="true" then NB true else if v="false" then NB false else err (!cur).l (!cur).c ("Invalid bare value '"^v^"'")
     | "LBRACK" -> arr ()
+    | "DO" -> NK (anon_block())
     | _ -> err (!cur).l (!cur).c ("Unexpected token: "^(!cur).t)
   and arr () =
     eat "LBRACK"; let rec elems acc =
@@ -92,39 +133,39 @@ let parse s =
     let name=(!cur).v in eat "IDENT";
     let arg = if (!cur).t="STRING" then let a=(!cur).v in eat "STRING"; Some a else None in
     eat "DO";
-    let props,blocks,named,seen = ref [], ref [], ref [], ref [] in
-    while (!cur).t<>"END" do
-      if (!cur).t="EOF" then err (!cur).l (!cur).c "missing 'end' for block";
-      if (!cur).t<>"IDENT" then err (!cur).l (!cur).c ("expected identifier, got "^(!cur).t);
-      let n = peek() in
-      if n.t="DO" || n.t="STRING" then let b=block() in if b.arg=None then blocks:=!blocks@[b] else named:=!named@[b]
-      else if n.t="EQ" || n.t="DOT" then let k=prop_key() in ensure seen k; eat "EQ"; props := !props @ [k, value()]
-      else err (!cur).l (!cur).c ("invalid statement after '"^(!cur).v^"'")
-    done;
+    let props, blocks, named = block_body () in
     eat "END";
-    { name = name; arg = arg; props = !props; blocks = !blocks; named = !named }
+    { name = name; arg = arg; props; blocks; named }
   in
-  let rec roots a = if (!cur).t="EOF" then List.rev a else roots (block()::a) in
-  roots []
+  if (!cur).t="DO" then (
+    eat "DO";
+    if (!cur).t<>"LBRACK" then err (!cur).l (!cur).c "root do must be followed by array";
+    let root = arr () in
+    if (!cur).t<>"EOF" then err (!cur).l (!cur).c "unexpected token after root array";
+    { blocks = []; root_value = Some root }
+  ) else (
+    let rec roots a = if (!cur).t="EOF" then List.rev a else roots (block()::a) in
+    { blocks = roots []; root_value = None }
+  )
 
 let esc s = String.concat "" (List.map (function '"'->"\\\""|'\\'->"\\\\"|'\n'->"\\n"|'\t'->"\\t"|c->String.make 1 c) (List.init (String.length s) (String.get s)))
 let q s = "\""^esc s^"\""
-let rec fmt_v = function NS s->q s | NN (I n)->string_of_int n | NN(F f)->Printf.sprintf "%g" f | NB b->if b then "true" else "false" | NA xs->"["^String.concat ", " (List.map fmt_v xs)^"]"
-let rec fmt_b i b =
+let rec fmt_v = function NS s->q s | NN (I n)->string_of_int n | NN(F f)->Printf.sprintf "%g" f | NB b->if b then "true" else "false" | NA xs->"["^String.concat ", " (List.map fmt_v xs)^"]" | NK b->fmt_anon b
+and fmt_b i b =
   let pad = String.make (2*i) ' ' in
   let h = if b.arg=None then pad^b.name^" do" else pad^b.name^" "^q (Option.get b.arg)^" do" in
-  let p = List.map (fun (k,v)->pad^"  "^k^" = "^fmt_v v) b.props in
+  let p = List.map (fun (k,v)->if match v with NA _ -> true | _ -> false then pad^"  "^k^" do "^fmt_v v^" end" else pad^"  "^k^" = "^fmt_v v) b.props in
   let c = List.map (fmt_b (i+1)) (b.blocks@b.named) in
   String.concat "\n" (h::(p@c@[pad^"end"]))
-let format_rcl d = String.concat "\n\n" (List.map (fmt_b 0) d)
+and fmt_anon b =
+  let parts = (List.map (fun (k,v)->k^" = "^fmt_v v) b.props) @ (List.map fmt_inline (b.blocks@b.named)) in
+  if parts=[] then "do end" else "do "^String.concat " " parts^" end"
+and fmt_inline b =
+  let h = if b.arg=None then b.name^" do" else b.name^" "^q (Option.get b.arg)^" do" in
+  let parts = (List.map (fun (k,v)->k^" = "^fmt_v v) b.props) @ (List.map fmt_inline (b.blocks@b.named)) in
+  if parts=[] then h^" end" else h^" "^String.concat " " parts^" end"
+let format_rcl d = match d.root_value with Some (NA _ as r)->"do "^fmt_v r | Some _ -> "do []" | None -> String.concat "\n\n" (List.map (fmt_b 0) d.blocks)
 
-let rec node_val = function NS s->VS s | NN n->VN n | NB b->VB b | NA xs->VA(List.map node_val xs)
-let rec insert_path m parts v = match parts with
-  | [] -> m
-  | [k] -> if SM.mem k m then failwith ("duplicate key '"^k^"'") else SM.add k v m
-  | k::rest ->
-    let o = match SM.find_opt k m with None->SM.empty | Some (VO o)->o | _->failwith ("key conflict at '"^k^"'") in
-    SM.add k (VO (insert_path o rest v)) m
 let named_base n = if String.length n > 0 && n.[String.length n - 1] = 's' then n else n ^ "s"
 let rec block_obj b =
   let m = List.fold_left (fun a (k,v)-> insert_path a (split_on_char '.' k) (node_val v)) SM.empty b.props in
@@ -138,9 +179,19 @@ let rec block_obj b =
       m b.blocks
   in
   List.fold_left (fun a c -> let base=named_base c.name in let ex=match SM.find_opt base a with Some(VO o)->o | _->SM.empty in SM.add base (VO (SM.add (Option.get c.arg) (VO (block_obj c)) ex)) a) m b.named
+and node_val = function NS s->VS s | NN n->VN n | NB b->VB b | NA xs->VA(List.map node_val xs) | NK b->VO(block_obj b)
+and insert_path m parts v = match parts with
+  | [] -> m
+  | [k] -> if SM.mem k m then failwith ("duplicate key '"^k^"'") else SM.add k v m
+  | k::rest ->
+    let o = match SM.find_opt k m with None->SM.empty | Some (VO o)->o | _->failwith ("key conflict at '"^k^"'") in
+    SM.add k (VO (insert_path o rest v)) m
 and split_on_char = String.split_on_char
 let to_object d =
-  List.fold_left (fun a b -> if b.arg=None then SM.add b.name (VO(block_obj b)) a else SM.add (named_base b.name) (VO (SM.singleton (Option.get b.arg) (VO(block_obj b)))) a) SM.empty d
+  match d.root_value with
+  | Some v -> SM.singleton "root" (node_val v)
+  | None ->
+    List.fold_left (fun a b -> if b.arg=None then SM.add b.name (VO(block_obj b)) a else SM.add (named_base b.name) (VO (SM.singleton (Option.get b.arg) (VO(block_obj b)))) a) SM.empty d.blocks
 let rec scalar = function VS s->q s | VN(I n)->string_of_int n | VN(F f)->Printf.sprintf "%g" f | VB b->if b then "true" else "false" | VA xs->"["^String.concat ", " (List.map scalar xs)^"]" | VO _->"{}"
 let rec yaml i = function
   | VA xs -> String.concat "\n" (List.map (fun x -> let p=String.make (2*i) ' ' in match x with VO _ | VA _ -> p^"-\n"^yaml (i+1) x | _ -> p^"- "^scalar x) xs)

@@ -1,4 +1,6 @@
 import { AstNode, BlockNode, DocumentNode } from "./ast.js";
+import { stringify as stringifyYaml } from "yaml";
+import TOML from "@iarna/toml";
 
 type V = string | number | boolean | V[] | { [k: string]: V };
 
@@ -7,6 +9,7 @@ function nodeToValue(node: AstNode): V {
   if (node.kind === "number") return node.value;
   if (node.kind === "boolean") return node.value;
   if (node.kind === "array") return node.elements.map(nodeToValue);
+  if (node.kind === "block") return blockToObject(node);
   throw new Error(`unsupported node kind ${node.kind}`);
 }
 
@@ -66,6 +69,7 @@ function insertPath(target: { [k: string]: V }, key: string, value: V): void {
 }
 
 export function toObject(document: DocumentNode): { [k: string]: V } {
+  if (document.root_value !== undefined) return { root: nodeToValue(document.root_value) };
   const out: { [k: string]: V } = {};
   for (const block of document.blocks) {
     if (block.argument !== undefined) out[namedBase(block.name)] = { [block.argument]: blockToObject(block) };
@@ -139,6 +143,11 @@ function emitScalar(v: V): string {
   return "{}";
 }
 
-export function toYAML(document: DocumentNode): string { return emitYAML(toObject(document)); }
-export function toTOML(document: DocumentNode): string { return emitTOML(toObject(document)); }
+export function toYAML(document: DocumentNode): string {
+  return stringifyYaml(toObject(document)).trimEnd();
+}
+
+export function toTOML(document: DocumentNode): string {
+  return TOML.stringify(toObject(document) as unknown as Record<string, unknown>).trimEnd();
+}
 export function toHCL(document: DocumentNode): string { return emitHCL(toObject(document)); }

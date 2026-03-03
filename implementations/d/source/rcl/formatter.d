@@ -2,6 +2,7 @@ module rcl.formatter;
 
 import std.array : appender;
 import std.conv : to;
+import std.array : join;
 import rcl.ast;
 
 string indentPad(int indent) {
@@ -24,6 +25,26 @@ string esc(string s) {
 
 string q(string s) { return "\"" ~ esc(s) ~ "\""; }
 
+string fmtValue(AstNode n);
+
+string fmtInlineBlock(BlockNode b) {
+  string[] parts;
+  foreach (k; b.propOrder) {
+    auto v = b.props[k];
+    if (v.kind == NodeKind.arr) parts ~= k ~ " do " ~ fmtValue(v) ~ " end";
+    else parts ~= k ~ " = " ~ fmtValue(v);
+  }
+  foreach (c; b.blocks) {
+    auto head = c.hasArg ? c.name ~ " " ~ q(c.arg) ~ " " : c.name ~ " ";
+    parts ~= head ~ fmtInlineBlock(c);
+  }
+  foreach (c; b.named) {
+    auto head = c.hasArg ? c.name ~ " " ~ q(c.arg) ~ " " : c.name ~ " ";
+    parts ~= head ~ fmtInlineBlock(c);
+  }
+  return parts.length ? "do " ~ parts.join(" ") ~ " end" : "do end";
+}
+
 string fmtValue(AstNode n) {
   final switch (n.kind) {
     case NodeKind.str: return q(n.sval);
@@ -33,6 +54,8 @@ string fmtValue(AstNode n) {
       string[] parts;
       foreach (e; n.elems) parts ~= fmtValue(e);
       return "[" ~ parts.join(", ") ~ "]";
+    case NodeKind.block:
+      return fmtInlineBlock(*n.blockVal);
   }
 }
 
@@ -40,7 +63,11 @@ string fmtBlock(BlockNode b, int indent) {
   auto pad = indentPad(indent);
   auto head = b.hasArg ? pad ~ b.name ~ " " ~ q(b.arg) ~ " do" : pad ~ b.name ~ " do";
   string[] lines = [head];
-  foreach (k; b.propOrder) lines ~= pad ~ "  " ~ k ~ " = " ~ fmtValue(b.props[k]);
+  foreach (k; b.propOrder) {
+    auto v = b.props[k];
+    if (v.kind == NodeKind.arr) lines ~= pad ~ "  " ~ k ~ " do " ~ fmtValue(v) ~ " end";
+    else lines ~= pad ~ "  " ~ k ~ " = " ~ fmtValue(v);
+  }
   foreach (c; b.blocks) lines ~= fmtBlock(c, indent + 1);
   foreach (c; b.named) lines ~= fmtBlock(c, indent + 1);
   lines ~= pad ~ "end";
@@ -48,9 +75,8 @@ string fmtBlock(BlockNode b, int indent) {
 }
 
 string formatDocument(Document d) {
+  if (d.hasRootValue) return "do " ~ fmtValue(d.rootValue);
   string[] lines;
   foreach (b; d.blocks) lines ~= fmtBlock(b, 0);
   return lines.join("\n\n");
 }
-
-import std.array : join;

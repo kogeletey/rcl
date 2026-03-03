@@ -1,11 +1,19 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use serde::Serialize;
+
 use crate::ast::{AstNode, BlockNode, DocumentNode};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum Value { S(String), N(f64), B(bool), A(Vec<Value>), O(BTreeMap<String, Value>) }
 
 pub fn to_object(doc: &DocumentNode) -> BTreeMap<String, Value> {
+    if let Some(root) = &doc.root_value {
+        let mut wrapped = BTreeMap::new();
+        wrapped.insert("root".to_string(), node_to_value(root));
+        return wrapped;
+    }
     let mut out = BTreeMap::new();
     for b in &doc.blocks {
         if let Some(arg) = &b.argument {
@@ -19,9 +27,20 @@ pub fn to_object(doc: &DocumentNode) -> BTreeMap<String, Value> {
     out
 }
 
-pub fn to_yaml(doc: &DocumentNode) -> String { emit_yaml(&Value::O(to_object(doc)), 0) }
-pub fn to_toml(doc: &DocumentNode) -> String { emit_toml(&to_object(doc)) }
-pub fn to_hcl(doc: &DocumentNode) -> String { emit_hcl(&Value::O(to_object(doc)), 0) }
+pub fn to_yaml(doc: &DocumentNode) -> String {
+    match serde_yaml::to_string(&Value::O(to_object(doc))) {
+        Ok(s) => s.trim_start_matches("---\n").trim_end().to_string(),
+        Err(_) => String::new(),
+    }
+}
+
+pub fn to_toml(doc: &DocumentNode) -> String {
+    toml::to_string(&to_object(doc)).unwrap_or_default().trim_end().to_string()
+}
+
+pub fn to_hcl(doc: &DocumentNode) -> String {
+    emit_hcl(&Value::O(to_object(doc)), 0)
+}
 
 fn block_to_map(block: &BlockNode) -> BTreeMap<String, Value> {
     let mut out = BTreeMap::new();
@@ -61,38 +80,8 @@ fn node_to_value(node: &AstNode) -> Value {
         AstNode::Number { value, .. } => Value::N(*value),
         AstNode::Boolean { value, .. } => Value::B(*value),
         AstNode::Array { elements, .. } => Value::A(elements.iter().map(node_to_value).collect()),
+        AstNode::Block { block, .. } => Value::O(block_to_map(block)),
     }
-}
-
-fn emit_yaml(v: &Value, indent: usize) -> String {
-    let pad = "  ".repeat(indent);
-    match v {
-        Value::O(map) => map.iter().map(|(k, item)| {
-            if matches!(item, Value::O(_) | Value::A(_)) { format!("{}{}:\n{}", pad, k, emit_yaml(item, indent + 1)) }
-            else { format!("{}{}: {}", pad, k, scalar(item)) }
-        }).collect::<Vec<_>>().join("\n"),
-        Value::A(arr) => arr.iter().map(|item| {
-            if matches!(item, Value::O(_) | Value::A(_)) { format!("{}-\n{}", pad, emit_yaml(item, indent + 1)) }
-            else { format!("{}- {}", pad, scalar(item)) }
-        }).collect::<Vec<_>>().join("\n"),
-        _ => format!("{}{}", pad, scalar(v)),
-    }
-}
-
-fn emit_toml(root: &BTreeMap<String, Value>) -> String {
-    let mut out = Vec::new();
-    fn walk(obj: &BTreeMap<String, Value>, prefix: Option<String>, out: &mut Vec<String>) {
-        for (k, v) in obj { if !matches!(v, Value::O(_)) { out.push(format!("{} = {}", k, scalar(v))); } }
-        for (k, v) in obj {
-            let Value::O(child) = v else { continue };
-            let sec = prefix.as_ref().map(|p| format!("{}.{}", p, k)).unwrap_or_else(|| k.clone());
-            if !out.is_empty() { out.push(String::new()); }
-            out.push(format!("[{}]", sec));
-            walk(child, Some(sec), out);
-        }
-    }
-    walk(root, None, &mut out);
-    out.join("\n")
 }
 
 fn emit_hcl(v: &Value, indent: usize) -> String {

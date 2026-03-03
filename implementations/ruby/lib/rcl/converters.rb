@@ -1,8 +1,13 @@
+require "yaml"
+
 module RCL
   module Converters
     module_function
 
     def to_object(doc)
+      if doc["root_value"]
+        return { "root" => node_to_value(doc.fetch("root_value")) }
+      end
       out = {}
       doc.fetch("blocks", []).each do |b|
         if b["argument"]
@@ -14,7 +19,9 @@ module RCL
       out
     end
 
-    def to_yaml(doc) = emit_yaml(to_object(doc), 0)
+    def to_yaml(doc)
+      YAML.dump(to_object(doc)).sub(/\A---\s*\n/, "")
+    end
     def to_toml(doc) = emit_toml(to_object(doc))
     def to_hcl(doc) = emit_hcl(to_object(doc), 0)
 
@@ -62,6 +69,7 @@ module RCL
       when "number" then node["value"]
       when "boolean" then node["value"]
       when "array" then node.fetch("elements", []).map { |e| node_to_value(e) }
+      when "block" then block_to_map(node)
       else nil
       end
     end

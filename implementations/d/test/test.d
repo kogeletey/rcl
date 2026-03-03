@@ -9,6 +9,8 @@ void main() {
     ~ "  port = 8080\n"
     ~ "  ratio = 3.14\n"
     ~ "  tls.cert_path = \"/etc/cert.pem\"\n"
+    ~ "  tests do [do name = \"smoke\" end, 1] end\n"
+    ~ "  legacy = [1, 2]\n"
     ~ "  names = [\"a\", \"b\", 1, false]\n"
     ~ "  region \"us\" do\n"
     ~ "    name = \"My Name\"\n"
@@ -23,7 +25,13 @@ void main() {
   enforce(indexOf(toTOML(ast), "[config.regions.us]") >= 0, "toml");
   enforce(indexOf(toYAML(ast), "regions:") >= 0, "yaml");
   enforce(indexOf(toHCL(ast), "regions {") >= 0, "hcl");
-  enforce(indexOf(formatRcl(ast), "region \"us\" do") >= 0, "format");
+  auto fmt = formatRcl(ast);
+  enforce(indexOf(fmt, "region \"us\" do") >= 0, "format");
+  enforce(indexOf(fmt, "tests do [do name = \"smoke\" end, 1] end") >= 0, "new-array");
+  enforce(indexOf(fmt, "legacy do [1, 2] end") >= 0, "old-array");
+
+  auto rootObj = toObject(parse("do [do type = \"smoke\" end, \"string\", [1, 2, 3]]"));
+  enforce(indexOf(rootObj.toString(), "\"root\":[") >= 0 && indexOf(rootObj.toString(), "\"type\":\"smoke\"") >= 0, "root-array");
 
   string[] bad = [
     "x do\n  name = value\nend\n",
@@ -33,6 +41,9 @@ void main() {
     "x do\n  name = 'bad'\nend\n",
     "x do\n  arr = [1,2\nend\n",
     "x do\n  // nope\n  a = 1\nend\n",
+    "x do\n  tests do [\"a\", \"b\"]\nend\n",
+    "do [\"a\", \"b\"",
+    "x do\n  tests = [do name = \"broken\"]\nend\n",
   ];
   foreach (b; bad) {
     bool ok = false;

@@ -5,6 +5,8 @@ class RclCore {
   static Map<String, dynamic> parse(String text) => Parser(Lexer(text)).program();
 
   static String formatAst(Map<String, dynamic> ast) {
+    final rootValue = ast['rootValue'] as Map<String, dynamic>?;
+    if (rootValue != null && rootValue['type'] == 'array') return 'do ${_fmtVal(rootValue)}';
     final sb = StringBuffer();
     for (final b in ast['blocks'] as List<dynamic>) {
       sb.write(_fmtBlock((b as Map).cast<String, dynamic>(), 0));
@@ -13,6 +15,8 @@ class RclCore {
   }
 
   static Map<String, dynamic> projectAst(Map<String, dynamic> ast) {
+    final rootValue = ast['rootValue'] as Map<String, dynamic>?;
+    if (rootValue != null) return {'root': _val(rootValue)};
     final out = <String, dynamic>{};
     for (final b in ast['blocks'] as List<dynamic>) {
       _mergeBlock(out, (b as Map).cast<String, dynamic>());
@@ -30,7 +34,12 @@ class RclCore {
     for (final s in b['statements'] as List<dynamic>) {
       final st = (s as Map).cast<String, dynamic>();
       if (st['type'] == 'property') {
-        sb.write('$i  ${(st['key'] as List<dynamic>).join('.')} = ${_fmtVal(st['value'] as Map<String, dynamic>)}\n');
+        final value = (st['value'] as Map).cast<String, dynamic>();
+        if (value['type'] == 'array') {
+          sb.write('$i  ${(st['key'] as List<dynamic>).join('.')} do ${_fmtVal(value)} end\n');
+        } else {
+          sb.write('$i  ${(st['key'] as List<dynamic>).join('.')} = ${_fmtVal(value)}\n');
+        }
       } else {
         sb.write(_fmtBlock(st, n + 2));
       }
@@ -43,6 +52,7 @@ class RclCore {
     if (v['type'] == 'string') return '"${_esc(v['value'] as String)}"';
     if (v['type'] == 'number') return v['raw'] as String;
     if (v['type'] == 'boolean') return (v['value'] as bool) ? 'true' : 'false';
+    if (v['type'] == 'block') return _fmtAnon(v);
     return '[${(v['items'] as List<dynamic>).map((e) => _fmtVal((e as Map).cast<String, dynamic>())).join(', ')}]';
   }
 
@@ -82,8 +92,32 @@ class RclCore {
   }
 
   static dynamic _val(Map<String, dynamic> v) {
-    if (v['type'] != 'array') return v['value'];
-    return (v['items'] as List<dynamic>).map((e) => _val((e as Map).cast<String, dynamic>())).toList();
+    if (v['type'] == 'array') {
+      return (v['items'] as List<dynamic>).map((e) => _val((e as Map).cast<String, dynamic>())).toList();
+    }
+    if (v['type'] == 'block') return _projectBlock(v);
+    return v['value'];
+  }
+
+  static String _fmtAnon(Map<String, dynamic> b) {
+    final parts = <String>[];
+    for (final s in b['statements'] as List<dynamic>) {
+      final st = (s as Map).cast<String, dynamic>();
+      if (st['type'] == 'property') parts.add('${(st['key'] as List<dynamic>).join('.')} = ${_fmtVal((st['value'] as Map).cast<String, dynamic>())}');
+      else parts.add(_fmtInline(st));
+    }
+    return parts.isEmpty ? 'do end' : 'do ${parts.join(' ')} end';
+  }
+
+  static String _fmtInline(Map<String, dynamic> b) {
+    final head = b['arg'] == null ? '${b['name']} do' : '${b['name']} "${_esc(b['arg'] as String)}" do';
+    final parts = <String>[];
+    for (final s in b['statements'] as List<dynamic>) {
+      final st = (s as Map).cast<String, dynamic>();
+      if (st['type'] == 'property') parts.add('${(st['key'] as List<dynamic>).join('.')} = ${_fmtVal((st['value'] as Map).cast<String, dynamic>())}');
+      else parts.add(_fmtInline(st));
+    }
+    return parts.isEmpty ? '$head end' : '$head ${parts.join(' ')} end';
   }
 
   static void _setPath(Map<String, dynamic> m, List<String> path, dynamic v) {

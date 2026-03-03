@@ -2,6 +2,7 @@ import Foundation
 
 public enum Converters {
     public static func toObject(_ doc: DocumentNode) -> [String: Any] {
+        if let root = doc.rootValue { return ["root": nodeToAny(root)] }
         var out: [String: Any] = [:]
         for b in doc.blocks {
             if let arg = b.argument { out[namedBase(b.name)] = [arg: blockToMap(b)] }
@@ -58,6 +59,7 @@ public enum Converters {
         case .number(let n): return n.value
         case .boolean(let n): return n.value
         case .array(let n): return n.elements.map(nodeToAny)
+        case .block(let n): return blockToMap(n)
         }
     }
 

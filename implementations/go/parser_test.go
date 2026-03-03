@@ -54,3 +54,22 @@ func TestStrictEdges(t *testing.T) {
 		if _, err := Parse(src); err == nil { t.Fatalf("expected error for: %s", src) }
 	}
 }
+
+func TestArrayFeatures(t *testing.T) {
+	named := "config do\n  tests do [\n    do\n      name = \"case-1\"\n    end,\n    \"string\"\n  ] end\nend"
+	doc, err := Parse(named)
+	if err != nil { t.Fatalf("parse named array error: %v", err) }
+	obj := ToObject(doc)
+	cfg := obj["config"].(map[string]any)
+	tests := cfg["tests"].([]any)
+	if tests[0].(map[string]any)["name"] != "case-1" { t.Fatalf("anon block item mismatch") }
+	if tests[1].(string) != "string" { t.Fatalf("string item mismatch") }
+
+	root := "do [\n  do\n    name = \"root-item\"\n  end,\n  \"x\"\n]"
+	rootDoc, err := Parse(root)
+	if err != nil { t.Fatalf("parse root array error: %v", err) }
+	rootObj := ToObject(rootDoc)
+	rootArr := rootObj["root"].([]any)
+	if rootArr[0].(map[string]any)["name"] != "root-item" { t.Fatalf("root anon block mismatch") }
+	if rootArr[1].(string) != "x" { t.Fatalf("root scalar mismatch") }
+}

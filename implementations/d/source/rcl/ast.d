@@ -1,6 +1,8 @@
 module rcl.ast;
 
-enum NodeKind { str, num, boolv, arr }
+struct BlockNode;
+
+enum NodeKind { str, num, boolv, arr, block }
 
 struct AstNode {
   NodeKind kind;
@@ -9,6 +11,7 @@ struct AstNode {
   bool bval;
   bool isInt;
   AstNode[] elems;
+  BlockNode* blockVal;
 }
 
 struct BlockNode {
@@ -23,4 +26,6 @@ struct BlockNode {
 
 struct Document {
   BlockNode[] blocks;
+  bool hasRootValue;
+  AstNode rootValue;
 }

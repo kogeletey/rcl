@@ -1,12 +1,20 @@
 package rcl
 
 import (
+	"bytes"
 	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/pelletier/go-toml/v2"
+	"github.com/zclconf/go-cty/cty"
+	"gopkg.in/yaml.v3"
 )
 
 func ToObject(doc DocumentNode) map[string]any {
+	if doc.RootValue != nil {
+		return map[string]any{"root": nodeToAny(doc.RootValue)}
+	}
 	out := map[string]any{}
 	for _, b := range doc.Blocks {
 		if b.Argument != nil {
@@ -79,99 +87,90 @@ func nodeToAny(n Node) any {
 		arr := make([]any, 0, len(v.Elements))
 		for _, e := range v.Elements { arr = append(arr, nodeToAny(e)) }
 		return arr
+	case BlockNode:
+		return blockToMap(v)
 	default:
 		return nil
 	}
 }
 
-func ToYAML(doc DocumentNode) (string, error) { return emitYAML(ToObject(doc), 0), nil }
-func ToTOML(doc DocumentNode) (string, error) { return emitTOML(ToObject(doc)), nil }
-func ToHCL(doc DocumentNode) (string, error) { return emitHCL(ToObject(doc), 0), nil }
+func ToYAML(doc DocumentNode) (string, error) {
+	b, err := yaml.Marshal(ToObject(doc))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(string(b), "\n"), nil
+}
 
-func emitYAML(v any, indent int) string {
-	pad := strings.Repeat("  ", indent)
-	switch t := v.(type) {
-	case map[string]any:
-		keys := sortedKeys(t); lines := []string{}
-		for _, k := range keys {
-			item := t[k]
-			switch item.(type) {
-			case map[string]any, []any:
-				lines = append(lines, pad+k+":", emitYAML(item, indent+1))
-			default:
-				lines = append(lines, pad+k+": "+scalar(item))
-			}
+func ToTOML(doc DocumentNode) (string, error) {
+	b, err := toml.Marshal(ToObject(doc))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(string(b), "\n"), nil
+}
+
+func ToHCL(doc DocumentNode) (string, error) {
+	f := hclwrite.NewEmptyFile()
+	body := f.Body()
+	writeHCLObject(body, ToObject(doc))
+	return string(bytes.TrimSpace(f.Bytes())), nil
+}
+
+func writeHCLObject(body *hclwrite.Body, obj map[string]any) {
+	for _, k := range sortedKeys(obj) {
+		item := obj[k]
+		if child, ok := item.(map[string]any); ok {
+			block := body.AppendNewBlock(k, nil)
+			writeHCLObject(block.Body(), child)
+			continue
 		}
-		return strings.Join(lines, "\n")
-	case []any:
-		lines := []string{}
-		for _, item := range t {
-			switch item.(type) {
-			case map[string]any, []any:
-				lines = append(lines, pad+"-", emitYAML(item, indent+1))
-			default:
-				lines = append(lines, pad+"- "+scalar(item))
-			}
+		if v, ok := toCty(item); ok {
+			body.SetAttributeValue(k, v)
 		}
-		return strings.Join(lines, "\n")
-	default:
-		return pad + scalar(v)
 	}
 }
 
-func emitTOML(v map[string]any) string {
-	out := []string{}
-	var walk func(map[string]any, string)
-	walk = func(obj map[string]any, prefix string) {
-		for _, k := range sortedKeys(obj) { if _, ok := obj[k].(map[string]any); !ok { out = append(out, k+" = "+scalar(obj[k])) } }
-		for _, k := range sortedKeys(obj) {
-			child, ok := obj[k].(map[string]any); if !ok { continue }
-			sec := k; if prefix != "" { sec = prefix + "." + k }
-			if len(out) > 0 { out = append(out, "") }
-			out = append(out, "["+sec+"]")
-			walk(child, sec)
-		}
-	}
-	walk(v, "")
-	return strings.Join(out, "\n")
-}
-
-func emitHCL(v any, indent int) string {
-	pad := strings.Repeat("  ", indent)
-	obj, ok := v.(map[string]any)
-	if !ok { return pad + scalar(v) }
-	lines := []string{}
-		for _, k := range sortedKeys(obj) {
-			item := obj[k]
-			if child, ok := item.(map[string]any); ok {
-				lines = append(lines, pad+k+" {", emitHCL(child, indent+1), pad+"}")
-			} else {
-				lines = append(lines, pad+k+" = "+scalar(item))
-			}
-		}
-		return strings.Join(lines, "\n")
-	}
-
-func sortedKeys(m map[string]any) []string { k := make([]string, 0, len(m)); for x := range m { k = append(k, x) }; sort.Strings(k); return k }
-func scalar(v any) string {
+func toCty(v any) (cty.Value, bool) {
 	switch t := v.(type) {
 	case string:
-		r := strings.NewReplacer("\\", "\\\\", "\"", "\\\"", "\n", "\\n", "\t", "\\t")
-		return "\"" + r.Replace(t) + "\""
+		return cty.StringVal(t), true
 	case bool:
-		if t { return "true" }; return "false"
+		return cty.BoolVal(t), true
 	case float64:
-		return strconv.FormatFloat(t, 'f', -1, 64)
-	case int, int32, int64:
-		return strconv.FormatInt(reflectInt64(t), 10)
+		return cty.NumberFloatVal(t), true
+	case int:
+		return cty.NumberIntVal(int64(t)), true
+	case int32:
+		return cty.NumberIntVal(int64(t)), true
+	case int64:
+		return cty.NumberIntVal(t), true
 	case []any:
-		parts := make([]string, 0, len(t)); for _, x := range t { parts = append(parts, scalar(x)) }; return "[" + strings.Join(parts, ", ") + "]"
+		items := make([]cty.Value, 0, len(t))
+		for _, e := range t {
+			cv, ok := toCty(e)
+			if !ok {
+				return cty.NilVal, false
+			}
+			items = append(items, cv)
+		}
+		return cty.TupleVal(items), true
+	case map[string]any:
+		attrs := make(map[string]cty.Value, len(t))
+		for _, k := range sortedKeys(t) {
+			cv, ok := toCty(t[k])
+			if !ok {
+				return cty.NilVal, false
+			}
+			attrs[k] = cv
+		}
+		return cty.ObjectVal(attrs), true
 	default:
-		return "{}"
+		return cty.NilVal, false
 	}
 }
 
-func reflectInt64(v any) int64 { switch n := v.(type) { case int: return int64(n); case int32: return int64(n); case int64: return n; default: return 0 } }
+func sortedKeys(m map[string]any) []string { k := make([]string, 0, len(m)); for x := range m { k = append(k, x) }; sort.Strings(k); return k }
 func namedBase(name string) string { if strings.HasSuffix(name, "s") { return name }; return name + "s" }
 
 func insertPath(target map[string]any, key string, value any) {

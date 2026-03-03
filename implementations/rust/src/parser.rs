@@ -14,9 +14,16 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<DocumentNode, ParseError> {
+        if self.cur.typ == TokenType::Do {
+            self.eat(TokenType::Do)?;
+            let root_array = self.parse_array()?;
+            if self.cur.typ != TokenType::Eof { return Err(self.err("unexpected token after root array")); }
+            return Ok(DocumentNode { kind: "document", blocks: vec![], root_value: Some(root_array) });
+        }
+
         let mut blocks = Vec::new();
         while self.cur.typ != TokenType::Eof { blocks.push(self.parse_block()?); }
-        Ok(DocumentNode { kind: "document", blocks })
+        Ok(DocumentNode { kind: "document", blocks, root_value: None })
     }
 
     fn parse_block(&mut self) -> Result<BlockNode, ParseError> {
@@ -24,6 +31,19 @@ impl Parser {
         let argument = if self.cur.typ == TokenType::String { let v = self.cur.value.clone(); self.eat(TokenType::String)?; Some(v) } else { None };
         self.eat(TokenType::Do)?;
 
+        let (properties, blocks, named_blocks) = self.parse_block_body()?;
+        self.eat(TokenType::End)?;
+        Ok(BlockNode { kind: "block", name, argument, properties, blocks, named_blocks })
+    }
+
+    fn parse_anonymous_block(&mut self) -> Result<BlockNode, ParseError> {
+        self.eat(TokenType::Do)?;
+        let (properties, blocks, named_blocks) = self.parse_block_body()?;
+        self.eat(TokenType::End)?;
+        Ok(BlockNode { kind: "block", name: "".to_string(), argument: None, properties, blocks, named_blocks })
+    }
+
+    fn parse_block_body(&mut self) -> Result<(BTreeMap<String, AstNode>, BTreeMap<String, BlockNode>, Vec<BlockNode>), ParseError> {
         let mut properties = BTreeMap::new();
         let mut blocks = BTreeMap::new();
         let mut named_blocks = Vec::new();
@@ -32,12 +52,24 @@ impl Parser {
         while self.cur.typ != TokenType::End {
             if self.cur.typ == TokenType::Eof { return Err(self.err("missing end")); }
             if self.cur.typ != TokenType::Identifier { return Err(self.err("expected identifier")); }
-            let next = self.peek_token()?;
-            if next.typ == TokenType::Do || next.typ == TokenType::String {
+            let next = self.peek_token_at(1)?;
+            if next.typ == TokenType::Do {
+                let after_do = self.peek_token_at(2)?;
+                if after_do.typ == TokenType::LBracket {
+                    let key = self.cur.value.clone();
+                    self.eat(TokenType::Identifier)?;
+                    self.ensure_key_valid(&key, &seen)?;
+                    seen.push(key.clone());
+                    self.eat(TokenType::Do)?;
+                    properties.insert(key, self.parse_array()?);
+                    self.eat(TokenType::End)?;
+                } else {
+                    let child = self.parse_block()?;
+                    if child.argument.is_some() { named_blocks.push(child.clone()); } else { blocks.insert(child.name.clone(), child); }
+                }
+            } else if next.typ == TokenType::String {
                 let child = self.parse_block()?;
-                if child.argument.is_some() {
-                    named_blocks.push(child.clone());
-                } else { blocks.insert(child.name.clone(), child); }
+                if child.argument.is_some() { named_blocks.push(child.clone()); } else { blocks.insert(child.name.clone(), child); }
             } else if next.typ == TokenType::Equal || next.typ == TokenType::Dot {
                 let key = self.parse_key()?;
                 self.ensure_key_valid(&key, &seen)?;
@@ -46,8 +78,8 @@ impl Parser {
                 properties.insert(key, self.parse_value()?);
             } else { return Err(self.err("invalid statement")); }
         }
-        self.eat(TokenType::End)?;
-        Ok(BlockNode { kind: "block", name, argument, properties, blocks, named_blocks })
+
+        Ok((properties, blocks, named_blocks))
     }
 
     fn parse_key(&mut self) -> Result<String, ParseError> {
@@ -75,6 +107,10 @@ impl Parser {
                 else { Err(self.err("invalid bare value")) }
             }
             TokenType::LBracket => self.parse_array(),
+            TokenType::Do => {
+                let block = self.parse_anonymous_block()?;
+                Ok(AstNode::Block { kind: "block", block: Box::new(block) })
+            }
             _ => Err(self.err("unexpected value")),
         }
     }
@@ -100,9 +136,10 @@ impl Parser {
         Ok(())
     }
 
-    fn peek_token(&mut self) -> Result<Token, ParseError> {
+    fn peek_token_at(&mut self, offset: usize) -> Result<Token, ParseError> {
         let st = self.lex.snapshot();
-        let tok = self.lex.next_token()?;
+        let mut tok = self.cur.clone();
+        for _ in 0..offset { tok = self.lex.next_token()?; }
         self.lex.restore(st);
         Ok(tok)
     }

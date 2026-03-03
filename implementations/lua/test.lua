@@ -28,6 +28,33 @@ if not rcl.toYAML(ast):find("regions:") then error("yaml") end
 if not rcl.toHCL(ast):find("regions %{") then error("hcl") end
 if not rcl.format(ast):find('region "us" do') then error("format") end
 
+local arr_src = table.concat({
+  "config do",
+  "  tests do [",
+  "    do",
+  "      name = \"case-1\"",
+  "    end,",
+  "    \"string\"",
+  "  ] end",
+  "end",
+}, "\n")
+local arr_obj = rcl.toObject(arr_src)
+if arr_obj.config.tests[1].name ~= "case-1" then error("anon block in array") end
+if arr_obj.config.tests[2] ~= "string" then error("named array assignment") end
+if not rcl.format(arr_src):find("tests do %[") then error("named array format") end
+
+local root_src = table.concat({
+  "do [",
+  "  do",
+  "    name = \"root-item\"",
+  "  end,",
+  "  \"x\"",
+  "]",
+}, "\n")
+local root_obj = rcl.toObject(root_src)
+if root_obj.root[1].name ~= "root-item" then error("root array object") end
+if root_obj.root[2] ~= "x" then error("root array value") end
+
 local bad = {
   "x do\n  name = value\nend",
   "x do\n  arr = [1,]\nend",
@@ -36,6 +63,9 @@ local bad = {
   "x do\n  name = 'bad'\nend",
   "x do\n  arr = [1,2\nend",
   "x do\n  // nope\n  a = 1\nend",
+  "x do\n  tests do [1, 2]\nend",
+  "do [1, 2",
+  "x do\n  arr = [do\n    a = 1\n]\nend",
 }
 for _, b in ipairs(bad) do
   local ok = pcall(function() rcl.parse(b) end)

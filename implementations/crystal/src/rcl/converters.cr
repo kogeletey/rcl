@@ -1,9 +1,12 @@
 require "./document"
+require "yaml"
 
 module RCL
   module Converters
     def self.to_yaml(value : RCL::Value) : String
-      emit_yaml(value, 0)
+      YAML.build do |yaml|
+        emit_yaml(yaml, value)
+      end
     end
 
     def self.to_toml(value : RCL::Value) : String
@@ -18,33 +21,23 @@ module RCL
       emit_hcl(root, 0)
     end
 
-    private def self.emit_yaml(value : RCL::Value, indent : Int32) : String
+    private def self.emit_yaml(yaml : YAML::Builder, value : RCL::Value) : Nil
       case value
       when Hash(String, RCL::Value)
-        lines = [] of String
-        value.keys.sort.each do |key|
-          item = value[key]
-          if item.is_a?(Hash(String, RCL::Value)) || item.is_a?(Array(RCL::Value))
-            lines << "#{"  " * indent}#{key}:"
-            lines << emit_yaml(item, indent + 1)
-          else
-            lines << "#{"  " * indent}#{key}: #{emit_scalar(item)}"
+        yaml.mapping do
+          value.keys.sort.each do |key|
+            yaml.scalar key
+            emit_yaml(yaml, value[key])
           end
         end
-        lines.join("\n")
       when Array(RCL::Value)
-        lines = [] of String
-        value.each do |item|
-          if item.is_a?(Hash(String, RCL::Value)) || item.is_a?(Array(RCL::Value))
-            lines << "#{"  " * indent}-"
-            lines << emit_yaml(item, indent + 1)
-          else
-            lines << "#{"  " * indent}- #{emit_scalar(item)}"
+        yaml.sequence do
+          value.each do |item|
+            emit_yaml(yaml, item)
           end
         end
-        lines.join("\n")
       else
-        emit_scalar(value)
+        value.to_yaml(yaml)
       end
     end
 

@@ -8,6 +8,12 @@ public final class Parser {
     }
 
     public func parse() throws -> DocumentNode {
+        if current.type == .do {
+            try eat(.do)
+            let rootValue = try parseArray()
+            if current.type != .eof { throw err("unexpected token after root array") }
+            return DocumentNode(blocks: [], rootValue: rootValue)
+        }
         var blocks: [BlockNode] = []
         while current.type != .eof { blocks.append(try parseBlock()) }
         return DocumentNode(blocks: blocks)
@@ -20,6 +26,19 @@ public final class Parser {
         if current.type == .string { argument = current.value; try eat(.string) }
         try eat(.do)
 
+        let out = try parseBlockBody(name: name, argument: argument)
+        try eat(.end)
+        return out
+    }
+
+    private func parseAnonymousBlock() throws -> BlockNode {
+        try eat(.do)
+        let out = try parseBlockBody(name: "", argument: nil)
+        try eat(.end)
+        return out
+    }
+
+    private func parseBlockBody(name: String, argument: String?) throws -> BlockNode {
         var properties: [String: Node] = [:]
         var blocks: [String: BlockNode] = [:]
         var named: [BlockNode] = []
@@ -29,7 +48,21 @@ public final class Parser {
             if current.type == .eof { throw err("missing end") }
             if current.type != .identifier { throw err("expected identifier") }
             let next = try peekToken()
-            if next.type == .do || next.type == .string {
+            if next.type == .do {
+                let afterDo = try peekToken(offset: 2)
+                if afterDo.type == .lbracket {
+                    let key = current.value
+                    try eat(.identifier)
+                    try ensureKeyValid(key, seen: &seen)
+                    try eat(.do)
+                    properties[key] = try parseArray()
+                    try eat(.end)
+                } else {
+                    let child = try parseBlock()
+                    if child.argument != nil { named.append(child) }
+                    else { blocks[child.name] = child }
+                }
+            } else if next.type == .string {
                 let child = try parseBlock()
                 if child.argument != nil { named.append(child) }
                 else { blocks[child.name] = child }
@@ -41,7 +74,6 @@ public final class Parser {
             } else { throw err("invalid statement") }
         }
 
-        try eat(.end)
         return BlockNode(name: name, argument: argument, properties: properties, blocks: blocks, namedBlocks: named)
     }
 
@@ -67,6 +99,7 @@ public final class Parser {
             if v == "false" { return .boolean(BooleanNode(value: false)) }
             throw err("invalid bare value")
         case .lbracket: return try parseArray()
+        case .do: return .block(try parseAnonymousBlock())
         default: throw err("unexpected value")
         }
     }
@@ -91,9 +124,10 @@ public final class Parser {
         current = try lexer.nextToken()
     }
 
-    private func peekToken() throws -> Token {
+    private func peekToken(offset: Int = 1) throws -> Token {
         let st = lexer.snapshot()
-        let tok = try lexer.nextToken()
+        var tok = current
+        for _ in 0..<offset { tok = try lexer.nextToken() }
         lexer.restore(st)
         return tok
     }

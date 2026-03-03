@@ -31,6 +31,23 @@ class Test {
     if (!Err("x do\n  s = 'bad'\nend\n", "single-quoted string usage")) return 1;
     if (!Err("x do\n  @ = 1\nend\n", "unexpected character")) return 1;
 
+    var namedArraySrc = "config do\n  tests do [\n    do\n      name = \"case-1\"\n    end,\n    \"string\"\n  ] end\nend\n";
+    var namedArrayAst = RCL.Parse(namedArraySrc);
+    var namedArrayObj = RCL.ToObject(namedArrayAst);
+    var cfg = (Dictionary<string, object>)namedArrayObj["config"];
+    var tests = (List<object>)cfg["tests"];
+    var first = (Dictionary<string, object>)tests[0];
+    if ((string)first["name"] != "case-1") return 1;
+    if ((string)tests[1] != "string") return 1;
+
+    var rootArraySrc = "do [\n  do\n    name = \"root-item\"\n  end,\n  \"x\"\n]\n";
+    var rootArrayAst = RCL.Parse(rootArraySrc);
+    var rootArrayObj = RCL.ToObject(rootArrayAst);
+    var rootValues = (List<object>)rootArrayObj["root"];
+    var rootFirst = (Dictionary<string, object>)rootValues[0];
+    if ((string)rootFirst["name"] != "root-item") return 1;
+    if ((string)rootValues[1] != "x") return 1;
+
     Console.WriteLine("ok");
     return 0;
   }

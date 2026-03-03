@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 pub struct DocumentNode {
     pub kind: &'static str,
     pub blocks: Vec<BlockNode>,
+    pub root_value: Option<AstNode>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -22,4 +23,5 @@ pub enum AstNode {
     Number { kind: &'static str, value: f64 },
     Boolean { kind: &'static str, value: bool },
     Array { kind: &'static str, elements: Vec<AstNode> },
+    Block { kind: &'static str, block: Box<BlockNode> },
 }

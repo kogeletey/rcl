@@ -15,5 +15,7 @@ int parser_next(Parser *parser);
 int parser_ensure(Parser *parser, TokenKind kind, const char *message);
 RclValue *parser_parse_value(Parser *parser);
 char *parser_parse_key(Parser *parser);
+int parser_parse_statement(Parser *parser, RclBlock *block, char ***keys, size_t *key_count);
+int parser_parse_block_body(Parser *parser, RclBlock *block, char ***keys, size_t *key_count);
 
 #endif

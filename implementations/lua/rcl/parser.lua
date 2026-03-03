@@ -32,6 +32,14 @@ function Parser:peek()
   return tok
 end
 
+function Parser:peek_at(offset)
+  local st = self.lexer:snapshot()
+  local tok = self.current
+  for _ = 1, offset do tok = self.lexer:next_token() end
+  self.lexer:restore(st)
+  return tok
+end
+
 function Parser:parse_property_key()
   local key = self.current.value
   self:eat("IDENT")
@@ -66,6 +74,7 @@ function Parser:parse_value()
     err(t, "Invalid bare value '" .. t.value .. "'")
   end
   if t.type == "LBRACK" then return self:parse_array() end
+  if t.type == "DO" then return { kind = "block", block = self:parse_anonymous_block() } end
   err(t, "Unexpected token: " .. t.type)
 end
 
@@ -85,19 +94,27 @@ function Parser:parse_array()
   return { kind = "array", elements = elements }
 end
 
-function Parser:parse_block()
-  local name = self.current.value
-  self:eat("IDENT")
-  local argument = nil
-  if self.current.type == "STRING" then argument = self.current.value; self:eat("STRING") end
-  self:eat("DO")
-
+function Parser:parse_block_body()
   local props, prop_order, blocks, named, seen = {}, {}, {}, {}, {}
   while self.current.type ~= "END" do
     if self.current.type == "EOF" then err(self.current, "missing 'end' for block") end
     if self.current.type ~= "IDENT" then err(self.current, "expected identifier, got " .. self.current.type) end
-    local nxt = self:peek()
-    if nxt.type == "DO" or nxt.type == "STRING" then
+    local nxt = self:peek_at(1)
+    if nxt.type == "DO" then
+      local after_do = self:peek_at(2)
+      if after_do.type == "LBRACK" then
+        local key = self.current.value
+        self:eat("IDENT")
+        self:ensure_key(key, seen)
+        self:eat("DO")
+        props[key] = self:parse_array()
+        prop_order[#prop_order + 1] = key
+        self:eat("END")
+      else
+        local child = self:parse_block()
+        if child.argument then named[#named + 1] = child else blocks[#blocks + 1] = child end
+      end
+    elseif nxt.type == "STRING" then
       local child = self:parse_block()
       if child.argument then named[#named + 1] = child else blocks[#blocks + 1] = child end
     elseif nxt.type == "EQ" or nxt.type == "DOT" then
@@ -110,12 +127,35 @@ function Parser:parse_block()
       err(self.current, "invalid statement after '" .. self.current.value .. "'")
     end
   end
+  return props, prop_order, blocks, named
+end
+
+function Parser:parse_block()
+  local name = self.current.value
+  self:eat("IDENT")
+  local argument = nil
+  if self.current.type == "STRING" then argument = self.current.value; self:eat("STRING") end
+  self:eat("DO")
+  local props, prop_order, blocks, named = self:parse_block_body()
   self:eat("END")
   return { kind = "block", name = name, argument = argument, properties = props, property_order = prop_order, blocks = blocks, named_blocks = named }
 end
 
+function Parser:parse_anonymous_block()
+  self:eat("DO")
+  local props, prop_order, blocks, named = self:parse_block_body()
+  self:eat("END")
+  return { kind = "block", name = "", argument = nil, properties = props, property_order = prop_order, blocks = blocks, named_blocks = named }
+end
+
 function Parser:parse()
-  local out = { kind = "document", blocks = {} }
+  if self.current.type == "DO" then
+    self:eat("DO")
+    local root = self:parse_array()
+    if self.current.type ~= "EOF" then err(self.current, "unexpected token after root array") end
+    return { kind = "document", blocks = {}, root_value = root }
+  end
+  local out = { kind = "document", blocks = {}, root_value = nil }
   while self.current.type ~= "EOF" do out.blocks[#out.blocks + 1] = self:parse_block() end
   return out
 end

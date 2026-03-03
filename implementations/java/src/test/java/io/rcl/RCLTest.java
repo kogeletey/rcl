@@ -1,5 +1,6 @@
 package io.rcl;
 
+import java.util.List;
 import java.util.Map;
 
 public final class RCLTest {
@@ -32,6 +33,24 @@ public final class RCLTest {
     expectErr("x do\n  s = \"bad\nend\n", "unterminated string");
     expectErr("x do\n  s = 'bad'\nend\n", "single-quoted string usage");
     expectErr("x do\n  @ = 1\nend\n", "unexpected character");
+
+    String namedArraySrc = "config do\n  tests do [\n    do\n      name = \"case-1\"\n    end,\n    \"string\"\n  ] end\nend\n";
+    Map<String, Object> namedObj = RCL.toObject(RCL.parse(namedArraySrc));
+    Map<String, Object> config = (Map<String, Object>) namedObj.get("config");
+    List<Object> tests = (List<Object>) config.get("tests");
+    Map<String, Object> first = (Map<String, Object>) tests.get(0);
+    if (!"case-1".equals(first.get("name"))) throw new RuntimeException("named array block item");
+    if (!"string".equals(tests.get(1))) throw new RuntimeException("named array scalar item");
+
+    String rootArraySrc = "do [\n  do\n    name = \"root-item\"\n  end,\n  \"x\"\n]\n";
+    Map<String, Object> rootObj = RCL.toObject(RCL.parse(rootArraySrc));
+    List<Object> rootVals = (List<Object>) rootObj.get("root");
+    Map<String, Object> rootFirst = (Map<String, Object>) rootVals.get(0);
+    if (!"root-item".equals(rootFirst.get("name"))) throw new RuntimeException("root array block item");
+    if (!"x".equals(rootVals.get(1))) throw new RuntimeException("root array scalar item");
+
+    expectErr("do [1] end\n", "unexpected token after root array");
+    expectErr("x do\n  arr do [1]\n  y = 1\nend\n", "unexpected token");
     System.out.println("ok");
   }
 

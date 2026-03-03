@@ -2,6 +2,7 @@ package io.rcl
 
 object Converters {
   fun toObject(document: DocumentNode): Map<String, Any?> {
+    if (document.rootValue != null) return linkedMapOf("root" to nodeToAny(document.rootValue))
     if (document.blocks.isEmpty()) return emptyMap()
     val out = linkedMapOf<String, Any?>()
     document.blocks.forEach { root ->
@@ -51,6 +52,7 @@ object Converters {
     is NumberNode -> node.value
     is BooleanNode -> node.value
     is ArrayNode -> node.elements.map { nodeToAny(it) }
+    is BlockNode -> blockToMap(node)
     else -> null
   }
 

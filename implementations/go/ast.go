@@ -7,6 +7,7 @@ type Node interface {
 type DocumentNode struct {
 	NodeKind string      `json:"kind"`
 	Blocks   []BlockNode `json:"blocks"`
+	RootValue Node       `json:"root_value,omitempty"`
 }
 
 func (n DocumentNode) Kind() string { return n.NodeKind }

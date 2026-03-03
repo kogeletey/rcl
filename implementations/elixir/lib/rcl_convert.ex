@@ -45,6 +45,7 @@ defmodule RCL.Convert do
   defp scalar(v) when is_binary(v), do: "\"" <> esc(v) <> "\""
   defp scalar(v) when is_boolean(v), do: if(v, do: "true", else: "false")
   defp scalar(v) when is_list(v), do: "[" <> Enum.map_join(v, ", ", &scalar/1) <> "]"
+  defp scalar(v) when is_map(v), do: "{}"
   defp scalar(v), do: to_string(v)
 
   defp entries(m), do: Enum.sort_by(m, fn {k, _} -> k end)

@@ -4,6 +4,13 @@ final class RCLParser {
   private array $t;
   public function __construct(private RCLLexer $l) { $this->t = $l->next(); }
   public function program(): array {
+    if ($this->t['type'] === 'do') {
+      $this->eat('do');
+      $rootValue = $this->value();
+      if ($rootValue['type'] !== 'array') $this->fail('unexpected token', $this->t);
+      if ($this->t['type'] !== 'eof') $this->fail('unexpected token after root array', $this->t);
+      return ['type' => 'Document', 'blocks' => [], 'rootValue' => $rootValue];
+    }
     $blocks = [];
     while ($this->t['type'] !== 'eof') $blocks[] = $this->block();
     return ['type' => 'Document', 'blocks' => $blocks];
@@ -22,7 +29,21 @@ final class RCLParser {
   }
   private function stmt(array &$keys): array {
     $id = $this->eat('id');
-    if ($this->t['type'] === 'do' || $this->t['type'] === 'string') {
+    if ($this->t['type'] === 'do') {
+      $this->eat('do');
+      if ($this->t['type'] === '[') {
+        $path = [$id['value']];
+        $this->checkPath($keys, $path, $id);
+        $value = $this->value();
+        $this->eat('end');
+        return ['type' => 'property', 'key' => $path, 'value' => $value];
+      }
+      $stmts = []; $inner = [];
+      while ($this->t['type'] !== 'end') { if ($this->t['type'] === 'eof') $this->fail('missing end', $this->t); $stmts[] = $this->stmt($inner); }
+      $this->eat('end');
+      return ['type' => 'Block', 'name' => $id['value'], 'arg' => null, 'statements' => $stmts];
+    }
+    if ($this->t['type'] === 'string') {
       $arg = $this->t['type'] === 'string' ? $this->eat('string')['value'] : null;
       $this->eat('do');
       $stmts = []; $inner = [];
@@ -55,6 +76,13 @@ final class RCLParser {
       if ($this->t['type'] !== ']') $this->fail('missing ]', $s);
       $this->eat(']');
       return ['type' => 'array', 'items' => $items];
+    }
+    if ($t === 'do') {
+      $this->eat('do');
+      $stmts = []; $inner = [];
+      while ($this->t['type'] !== 'end') { if ($this->t['type'] === 'eof') $this->fail('missing end', $this->t); $stmts[] = $this->stmt($inner); }
+      $this->eat('end');
+      return ['type' => 'block', 'name' => '', 'arg' => null, 'statements' => $stmts];
     }
     if ($t === 'id') $this->fail('invalid bare identifier value', $this->t);
     $this->fail('unexpected token', $this->t);

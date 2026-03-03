@@ -41,9 +41,39 @@ class ParserTest < Minitest::Test
       "x do\n  arr = [1,]\nend",
       "x do\n  a = 1\n  a = 2\nend",
       "x do\n  a = 1\n  a.b = 2\nend",
+      "do [1] end",
+      "x do\n  arr do [1]\n  y = 1\nend",
       "x do\n  name = 'bad'\nend",
       "x do\n  a = [1,2\nend"
     ]
     bad.each { |src| assert_raises(RuntimeError) { RCL.parse(src) } }
+  end
+
+  def test_named_array_root_array_and_anonymous_block_elements
+    named_src = [
+      "config do",
+      "  tests do [",
+      "    do",
+      "      name = \"case-1\"",
+      "    end,",
+      "    \"string\"",
+      "  ] end",
+      "end"
+    ].join("\n")
+    named = RCL.to_object(RCL.parse(named_src))
+    assert_equal "case-1", named["config"]["tests"][0]["name"]
+    assert_equal "string", named["config"]["tests"][1]
+
+    root_src = [
+      "do [",
+      "  do",
+      "    name = \"root-item\"",
+      "  end,",
+      "  \"x\"",
+      "]"
+    ].join("\n")
+    root = RCL.to_object(RCL.parse(root_src))
+    assert_equal "root-item", root["root"][0]["name"]
+    assert_equal "x", root["root"][1]
   end
 end

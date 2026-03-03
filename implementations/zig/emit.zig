@@ -11,6 +11,7 @@ fn nodeOf(v: P.Value, a: std.mem.Allocator) !Node {
     return switch (v) {
         .str => |s| .{ .str = s }, .num => |n| .{ .num = n }, .bool => |b| .{ .bool = b },
         .arr => |arr| blk: { var out = std.ArrayList(Node).init(a); for (arr.items) |x| try out.append(try nodeOf(x, a)); break :blk .{ .arr = out }; },
+        .blk => |b| try projBlock(b, a),
     };
 }
 fn insertPath(obj: *Node, key: []const u8, v: Node, a: std.mem.Allocator) !void {
@@ -33,6 +34,10 @@ fn projBlock(b: P.Block, a: std.mem.Allocator) !Node {
 }
 pub fn project(d: P.Doc, a: std.mem.Allocator) !Node {
     var root = Node{ .obj = std.StringArrayHashMap(Node).init(a) };
+    if (d.root) |v| {
+        try root.obj.put("root", try nodeOf(v, a));
+        return root;
+    }
     for (d.blocks.items) |b| {
         if (b.arg) |arg| {
             const bn = try base(b.name, a);

@@ -4,8 +4,11 @@ local function esc(s)
   return s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\t", "\\t")
 end
 
+local block_object
+
 local function node_value(node)
   if node.kind == "array" then local out = {}; for i, e in ipairs(node.elements) do out[i] = node_value(e) end; return out end
+  if node.kind == "block" then return block_object(node.block) end
   return node.value
 end
 
@@ -23,7 +26,7 @@ local function insert_path(dst, key, value)
   cur[parts[#parts]] = value
 end
 
-local function block_object(block)
+block_object = function(block)
   local out = {}
   for _, k in ipairs(block.property_order) do insert_path(out, k, node_value(block.properties[k])) end
   for _, b in ipairs(block.blocks) do
@@ -105,6 +108,7 @@ end
 
 return {
   to_object = function(doc)
+    if doc.root_value ~= nil then return { root = node_value(doc.root_value) } end
     local out = {}
     for _, b in ipairs(doc.blocks) do
       if b.argument then out[named_base(b.name)] = { [b.argument] = block_object(b) }

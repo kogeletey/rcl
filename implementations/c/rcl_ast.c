@@ -37,12 +37,15 @@ char *rcl_strndup(const char *s, size_t len) {
   return out;
 }
 
+static void block_free(RclBlock *block);
+
 static void value_free(RclValue *value) {
   size_t i;
   if (value == NULL) return;
   free(value->string_value);
   for (i = 0; i < value->array_value.len; i++) value_free(value->array_value.items[i]);
   free(value->array_value.items);
+  block_free(value->block_value);
   free(value);
 }
 
@@ -66,6 +69,7 @@ static void block_free(RclBlock *block) {
 void rcl_document_free(RclDocument *document) {
   size_t i;
   if (document == NULL) return;
+  value_free(document->root_value);
   for (i = 0; i < document->block_count; i++) block_free(document->blocks[i]);
   free(document->blocks);
   free(document);

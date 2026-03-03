@@ -5,6 +5,7 @@ sealed interface AstNode { val kind: String }
 data class DocumentNode(
   override val kind: String = "document",
   val blocks: List<BlockNode>,
+  val rootValue: AstNode? = null,
 ) : AstNode
 
 data class BlockNode(

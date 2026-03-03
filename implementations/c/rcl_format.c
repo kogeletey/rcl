@@ -57,6 +57,41 @@ char *escape_string(const char *text) {
   return out;
 }
 
+static int format_value(const RclValue *value, StringBuilder *sb);
+
+static int format_inline_block(const RclBlock *block, StringBuilder *sb) {
+  size_t i;
+  if (!sb_append(sb, "do")) return 0;
+  for (i = 0; i < block->statement_count; i++) {
+    if (!sb_append(sb, " ")) return 0;
+    if (block->statements[i].kind == RCL_STATEMENT_PROPERTY) {
+      if (!sb_append(sb, block->statements[i].property.key)) return 0;
+      if (block->statements[i].property.value->kind == RCL_VALUE_ARRAY) {
+        if (!sb_append(sb, " do ")) return 0;
+        if (!format_value(block->statements[i].property.value, sb)) return 0;
+        if (!sb_append(sb, " end")) return 0;
+      } else {
+        if (!sb_append(sb, " = ")) return 0;
+        if (!format_value(block->statements[i].property.value, sb)) return 0;
+      }
+    } else {
+      char *qarg = NULL;
+      if (!sb_append(sb, block->statements[i].block->name)) return 0;
+      if (block->statements[i].block->argument != NULL) {
+        qarg = escape_string(block->statements[i].block->argument);
+        if (qarg == NULL || !sb_append(sb, " ") || !sb_append(sb, qarg)) {
+          free(qarg);
+          return 0;
+        }
+        free(qarg);
+      }
+      if (!sb_append(sb, " ")) return 0;
+      if (!format_inline_block(block->statements[i].block, sb)) return 0;
+    }
+  }
+  return sb_append(sb, " end");
+}
+
 static int format_value(const RclValue *value, StringBuilder *sb) {
   size_t i;
   char num[32];
@@ -73,6 +108,7 @@ static int format_value(const RclValue *value, StringBuilder *sb) {
     return sb_append(sb, num);
   }
   if (value->kind == RCL_VALUE_BOOLEAN) return sb_append(sb, value->bool_value ? "true" : "false");
+  if (value->kind == RCL_VALUE_BLOCK) return format_inline_block(value->block_value, sb);
   if (!sb_append(sb, "[")) return 0;
   for (i = 0; i < value->array_value.len; i++) {
     if (i > 0 && !sb_append(sb, ", ")) return 0;
@@ -99,8 +135,15 @@ static int format_block(const RclBlock *block, size_t indent, StringBuilder *sb)
   if (!sb_append(sb, " do\n")) return 0;
   for (i = 0; i < block->statement_count; i++) {
     if (block->statements[i].kind == RCL_STATEMENT_PROPERTY) {
-      if (!sb_append(sb, pad) || !sb_append(sb, "  ") || !sb_append(sb, block->statements[i].property.key) || !sb_append(sb, " = ")) return 0;
-      if (!format_value(block->statements[i].property.value, sb) || !sb_append(sb, "\n")) return 0;
+      if (!sb_append(sb, pad) || !sb_append(sb, "  ") || !sb_append(sb, block->statements[i].property.key)) return 0;
+      if (block->statements[i].property.value->kind == RCL_VALUE_ARRAY) {
+        if (!sb_append(sb, " do ")) return 0;
+        if (!format_value(block->statements[i].property.value, sb)) return 0;
+        if (!sb_append(sb, " end\n")) return 0;
+      } else {
+        if (!sb_append(sb, " = ")) return 0;
+        if (!format_value(block->statements[i].property.value, sb) || !sb_append(sb, "\n")) return 0;
+      }
     } else {
       if (!format_block(block->statements[i].block, indent + 1, sb)) return 0;
     }
@@ -111,6 +154,13 @@ static int format_block(const RclBlock *block, size_t indent, StringBuilder *sb)
 char *rcl_format_document(const RclDocument *document) {
   size_t i;
   StringBuilder sb = {0};
+  if (document->has_root_value) {
+    if (!sb_append(&sb, "do ") || !format_value(document->root_value, &sb)) {
+      free(sb.data);
+      return NULL;
+    }
+    return sb.data;
+  }
   for (i = 0; i < document->block_count; i++) {
     if (!format_block(document->blocks[i], 0, &sb)) {
       free(sb.data);

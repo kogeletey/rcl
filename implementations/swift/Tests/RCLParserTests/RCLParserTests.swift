@@ -66,9 +66,44 @@ final class RCLParserTests: XCTestCase {
             "x do\n  arr = [1,]\nend",
             "x do\n  a = 1\n  a = 2\nend",
             "x do\n  a = 1\n  a.b = 2\nend",
+            "do [1] end",
+            "x do\n  arr do [1]\n  y = 1\nend",
         ]
         for src in bad {
             XCTAssertThrowsError(try RCL.parse(src))
         }
+    }
+
+    func testNamedArrayRootArrayAndAnonymousBlockElements() throws {
+        let namedSrc = [
+            "config do",
+            "  tests do [",
+            "    do",
+            "      name = \"case-1\"",
+            "    end,",
+            "    \"string\"",
+            "  ] end",
+            "end",
+        ].joined(separator: "\n")
+        let namedObj = Converters.toObject(try RCL.parse(namedSrc))
+        let config = namedObj["config"] as? [String: Any]
+        let tests = config?["tests"] as? [Any]
+        let first = tests?[0] as? [String: Any]
+        XCTAssertEqual(first?["name"] as? String, "case-1")
+        XCTAssertEqual(tests?[1] as? String, "string")
+
+        let rootSrc = [
+            "do [",
+            "  do",
+            "    name = \"root-item\"",
+            "  end,",
+            "  \"x\"",
+            "]",
+        ].joined(separator: "\n")
+        let rootObj = Converters.toObject(try RCL.parse(rootSrc))
+        let root = rootObj["root"] as? [Any]
+        let rootFirst = root?[0] as? [String: Any]
+        XCTAssertEqual(rootFirst?["name"] as? String, "root-item")
+        XCTAssertEqual(root?[1] as? String, "x")
     }
 }

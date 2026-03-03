@@ -1,5 +1,5 @@
 named_base(name::String) = endswith(name, "s") ? name : string(name, "s")
-node_value(node) = node["kind"] == "array" ? map(node_value, node["elements"]) : node["value"]
+node_value(node) = node["kind"] == "array" ? map(node_value, node["elements"]) : node["kind"] == "block" ? block_object(node["block"]) : node["value"]
 
 function insert_path!(dst::Dict{String,Any}, key::String, value)
   parts = split(key, ".")
@@ -30,6 +30,9 @@ function block_object(block)
 end
 
 function to_object_doc(doc)
+  if haskey(doc, "root_value") && !isnothing(doc["root_value"])
+    return Dict{String,Any}("root" => node_value(doc["root_value"]))
+  end
   out = Dict{String,Any}()
   for block in doc["blocks"]
     if isnothing(block["argument"]); out[block["name"]] = block_object(block)
@@ -39,7 +42,7 @@ function to_object_doc(doc)
 end
 
 esc_scalar(s::String) = "\"" * replace(replace(replace(replace(s, "\\"=>"\\\\"), "\""=>"\\\""), "\n"=>"\\n"), "\t"=>"\\t") * "\""
-scalar(v) = v isa String ? esc_scalar(v) : v isa Bool ? (v ? "true" : "false") : v isa Number ? string(v) : v isa Vector ? "[" * join(map(scalar, v), ", ") * "]" : "{}"
+scalar(v) = v isa String ? esc_scalar(v) : v isa Bool ? (v ? "true" : "false") : v isa Number ? string(v) : v isa Vector ? "[" * join(map(scalar, v), ", ") * "]" : v isa Dict{String,Any} ? "{}" : "{}"
 
 function emit_yaml(v, indent=0)
   pad = repeat("  ", indent)

@@ -22,5 +22,6 @@ public sealed class BlockNode : IAstNode {
 public sealed class DocumentNode : IAstNode {
   public string Kind { get { return "document"; } }
   public List<BlockNode> Blocks = new List<BlockNode>();
+  public IAstNode RootValue;
 }
 }

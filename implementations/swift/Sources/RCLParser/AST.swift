@@ -3,6 +3,7 @@ public enum Node: Equatable {
     case number(NumberNode)
     case boolean(BooleanNode)
     case array(ArrayNode)
+    case block(BlockNode)
 
     public var kind: String {
         switch self {
@@ -10,6 +11,7 @@ public enum Node: Equatable {
         case .number: return "number"
         case .boolean: return "boolean"
         case .array: return "array"
+        case .block: return "block"
         }
     }
 }
@@ -17,10 +19,12 @@ public enum Node: Equatable {
 public struct DocumentNode: Equatable {
     public let kind: String
     public let blocks: [BlockNode]
+    public let rootValue: Node?
 
-    public init(kind: String = "document", blocks: [BlockNode]) {
+    public init(kind: String = "document", blocks: [BlockNode], rootValue: Node? = nil) {
         self.kind = kind
         self.blocks = blocks
+        self.rootValue = rootValue
     }
 }
 

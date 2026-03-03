@@ -15,4 +15,8 @@
   <ItemGroup>
     <Compile Include="src/**/*.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Tomlyn" Version="0.17.0" />
+    <PackageReference Include="YamlDotNet" Version="15.1.2" />
+  </ItemGroup>
 </Project>

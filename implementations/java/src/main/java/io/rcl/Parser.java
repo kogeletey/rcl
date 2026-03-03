@@ -11,6 +11,12 @@ final class Parser {
 
   DocumentNode parse() {
     DocumentNode doc = new DocumentNode();
+    if (is(TokenKind.DO)) {
+      eat(TokenKind.DO, "unexpected token");
+      doc.rootValue = parseArray();
+      if (!is(TokenKind.EOF)) throw err("unexpected token after root array");
+      return doc;
+    }
     while (!is(TokenKind.EOF)) doc.blocks.add(parseBlock());
     return doc;
   }
@@ -20,26 +26,53 @@ final class Parser {
     String arg = null;
     if (is(TokenKind.STRING)) arg = eat(TokenKind.STRING, "unexpected token").text;
     eat(TokenKind.DO, "unexpected token");
-    BlockNode b = new BlockNode(n.text, arg);
+    BlockNode b = parseBlockBody(n.text, arg);
+    eat(TokenKind.END, "unexpected token");
+    return b;
+  }
+
+  private BlockNode parseAnonymousBlock() {
+    eat(TokenKind.DO, "unexpected token");
+    BlockNode b = parseBlockBody("", null);
+    eat(TokenKind.END, "unexpected token");
+    return b;
+  }
+
+  private BlockNode parseBlockBody(String name, String arg) {
+    BlockNode b = new BlockNode(name, arg);
     List<String> seen = new ArrayList<>();
     while (!is(TokenKind.END)) {
       if (is(TokenKind.EOF)) throw err("missing end");
       Token cur = eat(TokenKind.IDENT, "unexpected token");
       Token nxt = peek();
-      if (nxt.kind == TokenKind.EQ || nxt.kind == TokenKind.DOT) {
+      if (nxt.kind == TokenKind.DO) {
+        Token afterDo = peekAt(2);
+        if (afterDo.kind == TokenKind.LBR) {
+          String key = cur.text;
+          validateKey(key, seen, cur);
+          eat(TokenKind.DO, "unexpected token");
+          AstNode v = parseArray();
+          eat(TokenKind.END, "unexpected token");
+          b.properties.put(key, v);
+          b.propertyOrder.add(key);
+        } else {
+          p--;
+          BlockNode c = parseBlock();
+          if (c.argument == null) b.blocks.add(c); else b.namedBlocks.add(c);
+        }
+      } else if (nxt.kind == TokenKind.EQ || nxt.kind == TokenKind.DOT) {
         String key = parseKey(cur.text);
         validateKey(key, seen, cur);
         eat(TokenKind.EQ, "unexpected token");
         AstNode v = parseValue();
         b.properties.put(key, v);
         b.propertyOrder.add(key);
-      } else if (nxt.kind == TokenKind.DO || nxt.kind == TokenKind.STRING) {
+      } else if (nxt.kind == TokenKind.STRING) {
         p--;
         BlockNode c = parseBlock();
         if (c.argument == null) b.blocks.add(c); else b.namedBlocks.add(c);
       } else throw err("unexpected token");
     }
-    eat(TokenKind.END, "unexpected token");
     return b;
   }
 
@@ -61,6 +94,7 @@ final class Parser {
       throw err("invalid bare identifier value");
     }
     if (is(TokenKind.LBR)) return parseArray();
+    if (is(TokenKind.DO)) return parseAnonymousBlock();
     throw err("unexpected token");
   }
 
@@ -89,6 +123,12 @@ final class Parser {
 
   private boolean isPrefix(String a, String b) { return a.length() < b.length() && b.startsWith(a + "."); }
   private boolean is(TokenKind k) { return t.get(p).kind == k; }
+  private Token peekAt(int offset) {
+    int i = p + offset - 1;
+    if (i < 0) i = 0;
+    if (i >= t.size()) i = t.size() - 1;
+    return t.get(i);
+  }
   private Token peek() { return t.get(Math.min(p, t.size() - 1)); }
   private Token eat(TokenKind k, String msg) { if (!is(k)) throw err(msg); return t.get(p++); }
   private ParseError err(String msg) { Token x = t.get(Math.min(p, t.size() - 1)); return new ParseError(msg, x.line, x.col); }

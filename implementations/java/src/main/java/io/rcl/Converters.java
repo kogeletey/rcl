@@ -7,6 +7,11 @@ import java.util.Map;
 
 final class Converters {
   static Map<String, Object> toObject(DocumentNode doc) {
+    if (doc.rootValue != null) {
+      Map<String, Object> root = new LinkedHashMap<>();
+      root.put("root", val(doc.rootValue));
+      return root;
+    }
     Map<String, Object> out = new LinkedHashMap<>();
     for (BlockNode b : doc.blocks) {
       if (b.argument == null) out.put(b.name, blockObj(b));
@@ -49,6 +54,7 @@ final class Converters {
     if (n instanceof StringNode s) return s.value;
     if (n instanceof NumberNode d) return d.value;
     if (n instanceof BooleanNode b) return b.value;
+    if (n instanceof BlockNode b) return blockObj(b);
     List<Object> a = new ArrayList<>();
     for (AstNode x : ((ArrayNode) n).elements) a.add(val(x));
     return a;

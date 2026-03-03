@@ -1,10 +1,17 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using Tomlyn;
+using YamlDotNet.Serialization;
 
 namespace RCLImpl {
 public static class Converters {
   public static Dictionary<string, object> ToObject(DocumentNode d){
+    if(d.RootValue!=null){
+      var root=new Dictionary<string, object>();
+      root["root"]=Val(d.RootValue);
+      return root;
+    }
     var outp=new Dictionary<string, object>();
     foreach(var b in d.Blocks){
       if(b.Argument==null) outp[b.Name]=BlockObj(b);
@@ -36,26 +43,20 @@ public static class Converters {
     if(n is StringNode) return ((StringNode)n).Value;
     if(n is NumberNode) return ((NumberNode)n).Value;
     if(n is BooleanNode) return ((BooleanNode)n).Value;
+    if(n is BlockNode) return BlockObj((BlockNode)n);
     var a=new List<object>(); foreach(var x in ((ArrayNode)n).Elements) a.Add(Val(x)); return a;
   }
 
   static string Base(string s){ return s.EndsWith("s")?s:s+"s"; }
 
-  public static string ToYAML(DocumentNode d){ return Yaml(ToObject(d),0); }
-  public static string ToTOML(DocumentNode d){ var o=new StringBuilder(); Toml(o,ToObject(d),""); return o.ToString(); }
+  public static string ToYAML(DocumentNode d){
+    var serializer = new SerializerBuilder().Build();
+    return serializer.Serialize(ToObject(d)).TrimEnd('\r', '\n');
+  }
+  public static string ToTOML(DocumentNode d){
+    return Toml.FromModel(ToObject(d)).TrimEnd('\r', '\n');
+  }
   public static string ToHCL(DocumentNode d){ return Hcl(ToObject(d),0); }
-
-  static string Yaml(Dictionary<string, object> m,int n){
-    var o=new StringBuilder();
-    foreach(var it in m){ var pad=new string(' ',n*2); if(it.Value is Dictionary<string, object>) o.Append(pad).Append(it.Key).Append(":\n").Append(Yaml((Dictionary<string, object>)it.Value,n+1)); else o.Append(pad).Append(it.Key).Append(": ").Append(Scalar(it.Value)).Append('\n'); }
-    return o.ToString();
-  }
-
-  static void Toml(StringBuilder o,Dictionary<string, object> m,string p){
-    if(p!="") o.Append('[').Append(p).Append("]\n");
-    foreach(var it in m) if(!(it.Value is Dictionary<string, object>)) o.Append(it.Key).Append(" = ").Append(Scalar(it.Value)).Append('\n');
-    foreach(var it in m) if(it.Value is Dictionary<string, object>){ o.Append('\n'); Toml(o,(Dictionary<string, object>)it.Value,p==""?it.Key:p+"."+it.Key); }
-  }
 
   static string Hcl(Dictionary<string, object> m,int n){
     var o=new StringBuilder();

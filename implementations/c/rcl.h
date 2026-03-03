@@ -7,7 +7,8 @@ typedef enum {
   RCL_VALUE_STRING,
   RCL_VALUE_NUMBER,
   RCL_VALUE_BOOLEAN,
-  RCL_VALUE_ARRAY
+  RCL_VALUE_ARRAY,
+  RCL_VALUE_BLOCK
 } RclValueKind;
 
 typedef struct RclValue RclValue;
@@ -29,6 +30,7 @@ struct RclValue {
   double number_value;
   int bool_value;
   RclValueArray array_value;
+  RclBlock *block_value;
 };
 
 typedef enum {
@@ -52,6 +54,8 @@ struct RclBlock {
 typedef struct {
   RclBlock **blocks;
   size_t block_count;
+  int has_root_value;
+  RclValue *root_value;
 } RclDocument;
 
 typedef struct {
