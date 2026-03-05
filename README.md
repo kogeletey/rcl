@@ -10,19 +10,19 @@ A Ruby-like configuration language parser written in Crystal. It's designed to d
 | JSON | Readable by humans, comments support |
 | TOML | Better for nested structures |
 | XML | Simple and clean |
+| HCL | Simpler, Ruby-like syntax |
 | .env | Structured data, nested blocks |
 | Ruby files | **No code execution** - safe for config |
 
 ## Features
-
+ 
 - Ruby-like syntax - Simple, readable configuration format
 - Standalone parser - Independent library, reusable for any project
 - Custom block handlers - Register handlers for specific block types
 - Type-safe values - Strings, numbers, booleans, arrays, nested blocks
-- Stable AST contract - `Document#to_json`
 - Formatter - Convert parsed AST back to canonical RCL text
 - Native conversion - Export to YAML/TOML/HCL
-- Named blocks - `region "us" do` projects to `regions.us`
+- **Easy to type on mobile devices** - minimal punctuation, clean syntax
 
 ## API Reference
 
@@ -147,6 +147,39 @@ end
 
 # List of features
 features = ["auth", "logging", "cache"]
+```
+
+```json
+{
+  "apps": {
+    "myapp": {
+      "environment": "myapp",
+      "debug": false,
+      "log_level": "warn",
+      "server": {
+        "address": "example.com",
+        "port": 8080,
+        "enabled": true,
+        "ssl": {
+          "cert_path": "/etc/ssl/cert.pem"
+        },
+        "limits": {
+          "max_connections": 1000,
+          "timeout": 30
+        }
+      },
+      "databases": {
+        "primary": {
+          "adapter": "postgresql",
+          "host": "db.internal",
+          "name": "myapp",
+          "pool": 20
+        }
+      }
+    }
+  },
+  "features": ["auth", "logging", "cache"]
+}
 ```
 
 ## Development
