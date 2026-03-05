@@ -2,9 +2,12 @@
 # Allows registering custom handlers for specific block types
 #
 # Usage:
-#   RCL::Blocks.register("server") do |block, config|
-#     config.server_address = block["address"]
-#   end
+# RCL::Blocks.register("server") do |block|
+#   host = block.properties["host"]?.try(&.as(RCL::StringNode).value)
+#   port = block.properties["port"]?.try(&.as(RCL::NumberNode).value.to_i)
+#   do sth with "host" and "port"
+#   RCL::Blocks::Result.new(:ok, block)
+# end
 
 module RCL
   module Blocks
