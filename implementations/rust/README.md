@@ -15,4 +15,11 @@ let hcl = rcl_parser::to_hcl(&doc);
 let out = rcl_parser::format(&doc);
 ```
 
+Core-only usage:
+
+```rust
+let doc = rcl_parser::core::parse(source)?;
+let obj = rcl_parser::core::to_object(&doc);
+```
+
 Constraints: `#` comments only, strings in double quotes only, dotted keys are nested, duplicate/conflicting keys fail.

@@ -12,9 +12,9 @@ let src = String.concat "\n" [
 ]
 
 let () =
-  let ast = Rcl.parse src in
+  let ast = Rcl.Core.parse src in
   if List.length ast.blocks <> 1 then failwith "parse";
-  let obj = Rcl.to_object ast in
+  let obj = Rcl.Core.to_object ast in
   let open Rcl in
   let getm k = function VO m -> SM.find k m | _ -> failwith "type" in
   let cfg = getm "config" (VO obj) in
@@ -27,6 +27,7 @@ let () =
   if not (String.contains (Rcl.to_yaml ast) ':') then failwith "yaml";
   if not (String.contains (Rcl.to_hcl ast) '{') then failwith "hcl";
   if not (String.contains (Rcl.format_rcl ast) 'd') then failwith "fmt";
+  let _typed_num : Rcl.Core.num = Rcl.I 1 in
   let arr_src = String.concat "\n" [
     "config do";
     "  tests do [";

@@ -12,6 +12,18 @@ gem install rcl-ruby
 
 ## Usage
 
+Core entrypoint (`require "rcl/core"`) includes only parse + object projection.
+
+```ruby
+require "rcl/core"
+
+ast = RCL::Core.parse("xray do\n  port = 8080\nend")
+puts ast["kind"]
+puts RCL::Core.to_object(ast)
+```
+
+Extended entrypoint (`require "rcl"`) preserves the existing full API.
+
 ```ruby
 require "rcl"
 

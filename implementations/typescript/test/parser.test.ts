@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as core from "../src/core.js";
 import { format, parse, parseSafe, toHCL, toObject, toTOML, toYAML } from "../src/index.js";
 
 test("full spec parse + format", () => {
@@ -99,4 +100,15 @@ test("supports named/root arrays and anonymous block array elements", () => {
   const rootObj = toObject(rootAst);
   assert.equal(((rootObj.root as any[])[0] as any).name, "root-item");
   assert.equal((rootObj.root as any[])[1], "x");
+});
+
+test("core entrypoint exposes parse + toObject but not formatter/converters", () => {
+  const src = "config do\n  region \"us\" do\n    name = \"My name\"\n  end\nend";
+  const ast = core.parse(src);
+  const obj = core.toObject(ast);
+  assert.equal((obj.config as any).regions.us.name, "My name");
+  assert.equal("format" in core, false);
+  assert.equal("toYAML" in core, false);
+  assert.equal("toTOML" in core, false);
+  assert.equal("toHCL" in core, false);
 });

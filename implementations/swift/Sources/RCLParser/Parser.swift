@@ -152,5 +152,15 @@ public final class Parser {
 }
 
 public enum RCL {
-    public static func parse(_ text: String) throws -> DocumentNode { try Parser(text).parse() }
+    public static func parse(_ text: String) throws -> DocumentNode { try RCLCore.parse(text) }
+    public static func format(_ text: String) throws -> String { format(try parse(text)) }
+    public static func format(_ doc: DocumentNode) -> String { Formatter.format(doc) }
+    public static func toObject(_ text: String) throws -> [String: Any] { try toObject(parse(text)) }
+    public static func toObject(_ doc: DocumentNode) -> [String: Any] { RCLCore.toObject(doc) }
+    public static func toYAML(_ text: String) throws -> String { toYAML(try parse(text)) }
+    public static func toYAML(_ doc: DocumentNode) -> String { Converters.toYAML(doc) }
+    public static func toTOML(_ text: String) throws -> String { toTOML(try parse(text)) }
+    public static func toTOML(_ doc: DocumentNode) -> String { Converters.toTOML(doc) }
+    public static func toHCL(_ text: String) throws -> String { toHCL(try parse(text)) }
+    public static func toHCL(_ doc: DocumentNode) -> String { Converters.toHCL(doc) }
 }

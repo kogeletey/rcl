@@ -1,9 +1,10 @@
 const std = @import("std");
+const Core = @import("core.zig");
 const P = @import("parser.zig");
 const E = @import("emit.zig");
 
 pub fn parse(text: []const u8) ![]const u8 {
-    _ = try P.parseDoc(text, std.heap.page_allocator);
+    _ = try Core.parse(text, std.heap.page_allocator);
     return "{\"kind\":\"document\"}";
 }
 
@@ -111,6 +112,10 @@ pub fn toHCL(text: []const u8, a: std.mem.Allocator) ![]u8 { return convert(text
 test "spec parse/project/converters" {
     const a = std.heap.page_allocator;
     const src = "config do\n  tls.cert = \"/x\"\n  tests do [do name = \"smoke\" end, 1] end\n  legacy = [1, 2]\n  region \"us\" do\n    name = \"My Name\"\n    ports = [1, 2]\n  end\nend\n";
+    const core_doc = try Core.parse(src, a);
+    const core_obj = try Core.to_object(core_doc, a);
+    try std.testing.expect(std.mem.indexOf(u8, core_obj, "\"config\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, core_obj, "\"regions\"") != null);
     const obj = try toObject(src, a);
     try std.testing.expect(std.mem.indexOf(u8, obj, "\"config\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, obj, "\"regions\"") != null);
@@ -128,7 +133,7 @@ test "spec parse/project/converters" {
 
 test "spec edges" {
     const a = std.heap.page_allocator;
-    try std.testing.expectError(P.ParseError.BareValue, P.parseDoc("x do\n  name = value\nend\n", a));
+    try std.testing.expectError(Core.ParseError.BareValue, Core.parse("x do\n  name = value\nend\n", a));
     try std.testing.expectError(P.ParseError.TrailingComma, P.parseDoc("x do\n  arr = [1,]\nend\n", a));
     try std.testing.expectError(P.ParseError.KeyConflict, P.parseDoc("x do\n  a = 1\n  a.b = 2\nend\n", a));
     try std.testing.expectError(P.ParseError.SingleQuote, P.parseDoc("x do\n  s = 'bad'\nend\n", a));

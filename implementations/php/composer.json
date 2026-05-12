@@ -13,6 +13,7 @@
       "src/RCLParser.php",
       "src/RCLAst.php",
       "src/RCLConvert.php",
+      "src/RCLCore.php",
       "src/RCL.php"
     ]
   }

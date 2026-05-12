@@ -2,10 +2,10 @@
 
 Native C lexer, parser, AST, formatter, and converters for RCL v1.
 
-## API
+## Core API (parse + AST + to_object)
 
 ```c
-#include "rcl.h"
+#include "rcl_core.h"
 
 RclError err;
 RclDocument *doc = rcl_parse(text, &err);
@@ -14,18 +14,20 @@ if (doc == NULL) {
   return;
 }
 
-char *formatted = rcl_format_document(doc);
 char *json = rcl_to_object_json(doc);
+rcl_string_free(json);
+rcl_document_free(doc);
+```
+
+## Extended API (formatter + converters)
+
+```c
+#include "rcl.h"
+
+char *formatted = rcl_format_document(doc);
 char *yaml = rcl_to_yaml(doc);
 char *toml = rcl_to_toml(doc);
 char *hcl = rcl_to_hcl(doc);
-
-rcl_string_free(formatted);
-rcl_string_free(json);
-rcl_string_free(yaml);
-rcl_string_free(toml);
-rcl_string_free(hcl);
-rcl_document_free(doc);
 ```
 
 Named blocks are projected with the generic rule `named_base(name) = name + "s"` when `name` does not already end with `s`.

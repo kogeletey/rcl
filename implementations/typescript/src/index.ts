@@ -1,15 +1,10 @@
 import { DocumentNode, ParseError } from "./ast.js";
 import { ParserException } from "./error.js";
 import { format } from "./formatter.js";
-import { Lexer } from "./lexer.js";
-import { Parser } from "./parser.js";
+import { parse } from "./core.js";
 import { toHCL, toObject, toTOML, toYAML } from "./convert.js";
 
 export * from "./ast.js";
-
-export function parse(text: string): DocumentNode {
-  return new Parser(new Lexer(text)).parse();
-}
 
 export function parseSafe(text: string): { ok: true; ast: DocumentNode } | { ok: false; error: ParseError } {
   try {

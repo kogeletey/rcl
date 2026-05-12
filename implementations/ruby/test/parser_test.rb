@@ -1,7 +1,18 @@
 require "minitest/autorun"
 require_relative "../lib/rcl"
+require_relative "../lib/rcl/core"
 
 class ParserTest < Minitest::Test
+  def test_core_entrypoint_parse_and_object
+    src = "config do\n  region \"us\" do\n    name = \"My Name\"\n  end\nend"
+    ast = RCL::Core.parse(src)
+    assert_equal "document", ast["kind"]
+    obj = RCL::Core.to_object(ast)
+    assert_equal "My Name", obj["config"]["regions"]["us"]["name"]
+    refute RCL::Core.respond_to?(:format)
+    refute RCL::Core.respond_to?(:to_yaml)
+  end
+
   def test_full_spec_parse_and_format
     src = [
       "# comment",

@@ -2,6 +2,24 @@ import XCTest
 @testable import RCLParser
 
 final class RCLParserTests: XCTestCase {
+    func testCoreSurfaceParseAndObjectProjection() throws {
+        let src = [
+            "root do",
+            "  service \"api\" do",
+            "    title = \"My Name\"",
+            "  end",
+            "end",
+        ].joined(separator: "\n")
+
+        let ast = try RCLCore.parse(src)
+        XCTAssertEqual(ast.kind, "document")
+        let obj = RCLCore.toObject(ast)
+        let root = obj["root"] as? [String: Any]
+        let services = root?["services"] as? [String: Any]
+        let api = services?["api"] as? [String: Any]
+        XCTAssertEqual(api?["title"] as? String, "My Name")
+    }
+
     func testParseAndFormatFullSpec() throws {
         let src = [
             "# comment",
@@ -22,12 +40,12 @@ final class RCLParserTests: XCTestCase {
         let ast = try RCL.parse(src)
         XCTAssertEqual(ast.kind, "document")
         XCTAssertEqual(ast.blocks.first?.name, "server")
-        let obj = Converters.toObject(ast)
+        let obj = RCL.toObject(ast)
         let server = obj["server"] as? [String: Any]
         let tls = server?["tls"] as? [String: Any]
         XCTAssertEqual(tls?["cert_path"] as? String, "/etc/cert.pem")
 
-        let out = Formatter.format(ast)
+        let out = RCL.format(ast)
         let reparsed = try RCL.parse(out)
         XCTAssertEqual(reparsed, ast)
     }
@@ -50,14 +68,14 @@ final class RCLParserTests: XCTestCase {
         ].joined(separator: "\n")
 
         let ast = try RCL.parse(src)
-        let obj = Converters.toObject(ast)
+        let obj = RCL.toObject(ast)
         let config = obj["config"] as? [String: Any]
         let regions = config?["regions"] as? [String: Any]
         let us = regions?["us"] as? [String: Any]
         XCTAssertEqual(us?["name"] as? String, "My name")
-        XCTAssertTrue(Converters.toYAML(ast).contains("regions:"))
-        XCTAssertTrue(Converters.toTOML(ast).contains("[config.regions.us]"))
-        XCTAssertTrue(Converters.toHCL(ast).contains("regions {"))
+        XCTAssertTrue(RCL.toYAML(ast).contains("regions:"))
+        XCTAssertTrue(RCL.toTOML(ast).contains("[config.regions.us]"))
+        XCTAssertTrue(RCL.toHCL(ast).contains("regions {"))
     }
 
     func testStrictEdges() {
@@ -85,7 +103,7 @@ final class RCLParserTests: XCTestCase {
             "  ] end",
             "end",
         ].joined(separator: "\n")
-        let namedObj = Converters.toObject(try RCL.parse(namedSrc))
+        let namedObj = RCL.toObject(try RCL.parse(namedSrc))
         let config = namedObj["config"] as? [String: Any]
         let tests = config?["tests"] as? [Any]
         let first = tests?[0] as? [String: Any]
@@ -100,7 +118,7 @@ final class RCLParserTests: XCTestCase {
             "  \"x\"",
             "]",
         ].joined(separator: "\n")
-        let rootObj = Converters.toObject(try RCL.parse(rootSrc))
+        let rootObj = RCL.toObject(try RCL.parse(rootSrc))
         let root = rootObj["root"] as? [Any]
         let rootFirst = root?[0] as? [String: Any]
         XCTAssertEqual(rootFirst?["name"] as? String, "root-item")

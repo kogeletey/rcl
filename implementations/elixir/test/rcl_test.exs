@@ -1,4 +1,5 @@
 Code.require_file("../lib/rcl.ex", __DIR__)
+Code.require_file("../lib/rcl_core_entry.ex", __DIR__)
 ExUnit.start()
 
 defmodule RCLTest do
@@ -27,6 +28,16 @@ defmodule RCLTest do
     assert RCL.to_yaml(src) != ""
     assert RCL.to_toml(src) != ""
     assert RCL.to_hcl(src) != ""
+  end
+
+  test "core entrypoint parse and projection only" do
+    src = "root do\n  widget \"blue\" do\n    title = \"My Name\"\n  end\nend\n"
+    ast = RCLCore.parse(src)
+    assert ast.type == :document
+    obj = RCLCore.to_object(src)
+    assert obj["root"]["widgets"]["blue"]["title"] == "My Name"
+    refute function_exported?(RCLCore, :format, 1)
+    refute function_exported?(RCLCore, :to_yaml, 1)
   end
 
   test "root named block and edge errors" do

@@ -49,6 +49,20 @@ public final class RCLTest {
     if (!"root-item".equals(rootFirst.get("name"))) throw new RuntimeException("root array block item");
     if (!"x".equals(rootVals.get(1))) throw new RuntimeException("root array scalar item");
 
+    DocumentNode coreAst = io.rcl.core.RCL.parse(src);
+    if (!"document".equals(coreAst.kind())) throw new RuntimeException("core ast");
+    Map<String, Object> coreObj = io.rcl.core.RCL.toObject(coreAst);
+    Map<String, Object> coreRoot = (Map<String, Object>) coreObj.get("root");
+    Map<String, Object> coreServices = (Map<String, Object>) coreRoot.get("services");
+    Map<String, Object> coreApi = (Map<String, Object>) coreServices.get("api");
+    if (!"My Name".equals(coreApi.get("title"))) throw new RuntimeException("core projection");
+
+    Class<?> coreType = io.rcl.core.RCL.class;
+    if (findMethod(coreType, "format")) throw new RuntimeException("core format leaked");
+    if (findMethod(coreType, "toYAML")) throw new RuntimeException("core yaml leaked");
+    if (findMethod(coreType, "toTOML")) throw new RuntimeException("core toml leaked");
+    if (findMethod(coreType, "toHCL")) throw new RuntimeException("core hcl leaked");
+
     expectErr("do [1] end\n", "unexpected token after root array");
     expectErr("x do\n  arr do [1]\n  y = 1\nend\n", "unexpected token");
     System.out.println("ok");
@@ -62,5 +76,10 @@ public final class RCLTest {
       if (!ex.getMessage().contains(needle)) throw new RuntimeException("wrong error: " + ex.getMessage());
       if (!ex.getMessage().contains("line")) throw new RuntimeException("missing position");
     }
+  }
+
+  private static boolean findMethod(Class<?> type, String name) {
+    for (var method : type.getDeclaredMethods()) if (name.equals(method.getName())) return true;
+    return false;
   }
 }

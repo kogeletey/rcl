@@ -1,5 +1,7 @@
 include("../src/RCL.jl")
+include("../src/RCLCore.jl")
 using .RCL
+using .RCLCore
 
 src = join([
   "config do",
@@ -13,6 +15,13 @@ src = join([
   "  end",
   "end"
 ], "\n")
+
+core_ast = RCLCore.parse(src)
+core_ast["kind"] == "document" || error("core parse")
+core_obj = RCLCore.to_object(src)
+core_obj["config"]["regions"]["us"]["name"] == "My Name" || error("core object")
+isdefined(RCLCore, :format) && error("core must not export format")
+isdefined(RCLCore, :to_yaml) && error("core must not export converters")
 
 ast = RCL.parse(src)
 ast["kind"] == "document" || error("parse")

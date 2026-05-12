@@ -1,4 +1,5 @@
 import 'package:rcl/rcl.dart';
+import 'package:rcl/rcl_core.dart';
 import 'package:test/test.dart';
 
 void expectFail(String src, String msg) {
@@ -12,6 +13,15 @@ void expectFail(String src, String msg) {
 }
 
 void main() {
+  test('core entrypoint parse and projection', () {
+    const src = 'root do\n  widget "blue" do\n    title = "My Name"\n  end\nend\n';
+    final ast = RCLCore.parse(src);
+    expect(ast['type'], 'Document');
+    final obj = RCLCore.toObject(src);
+    expect(obj['root']['widgets']['blue']['title'], 'My Name');
+    expect(() => (RCLCore as dynamic).format(src), throwsNoSuchMethodError);
+  });
+
   test('ast projection converters and format', () {
     const src = 'root do\n  widget "blue" do\n    title = "My Name"\n    enabled = true\n    nums = [1, -2, 3.5]\n  end\nend\n';
     final ast = RCL.parse(src);

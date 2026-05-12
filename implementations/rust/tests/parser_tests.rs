@@ -131,3 +131,29 @@ end"#;
     assert_eq!(root_first.get("name"), Some(&rcl_parser::convert::Value::S("root-item".to_string())));
     assert_eq!(root_arr[1], rcl_parser::convert::Value::S("x".to_string()));
 }
+
+#[test]
+fn core_entrypoint_parse_and_to_object() {
+    let src = [
+        "config do",
+        "  region \"us\" do",
+        "    name = \"My name\"",
+        "  end",
+        "end",
+    ].join("\n");
+    let doc = rcl_parser::core::parse(&src).expect("core parse");
+    let obj = rcl_parser::core::to_object(&doc);
+    let config = match obj.get("config").expect("config") {
+        rcl_parser::core::Value::O(map) => map,
+        _ => panic!("config map expected"),
+    };
+    let regions = match config.get("regions").expect("regions") {
+        rcl_parser::core::Value::O(map) => map,
+        _ => panic!("regions map expected"),
+    };
+    let us = match regions.get("us").expect("us") {
+        rcl_parser::core::Value::O(map) => map,
+        _ => panic!("us map expected"),
+    };
+    assert_eq!(us.get("name"), Some(&rcl_parser::core::Value::S("My name".to_string())));
+}

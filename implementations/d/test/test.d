@@ -1,4 +1,5 @@
 import rcl;
+import rcl.core : parseCore = parse, toObjectCore = toObject, to_object;
 import std.exception : enforce;
 import std.stdio : writeln;
 import std.string : indexOf;
@@ -17,11 +18,13 @@ void main() {
     ~ "  end\n"
     ~ "end\n";
 
-  auto ast = parse(src);
+  auto ast = parseCore(src);
   enforce(ast.blocks.length == 1, "parse");
-  auto obj = toObject(ast);
+  auto obj = toObjectCore(ast);
+  auto objSnake = to_object(ast);
   enforce(obj.object["config"].object["tls"].object["cert_path"].str == "/etc/cert.pem", "dot");
   enforce(obj.object["config"].object["regions"].object["us"].object["name"].str == "My Name", "named");
+  enforce(objSnake.object["config"].object["port"].integer == 8080, "core-to-object");
   enforce(indexOf(toTOML(ast), "[config.regions.us]") >= 0, "toml");
   enforce(indexOf(toYAML(ast), "regions:") >= 0, "yaml");
   enforce(indexOf(toHCL(ast), "regions {") >= 0, "hcl");

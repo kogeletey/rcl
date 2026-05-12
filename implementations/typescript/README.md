@@ -23,4 +23,10 @@ const hcl = toHCL(ast);
 const rcl = format(ast);
 ```
 
+Core-only usage:
+
+```ts
+import { parse, toObject } from "@rcl/parser/core";
+```
+
 Constraints: `#` comments only, strings in double quotes only, dotted keys are nested, duplicate/conflicting keys fail.

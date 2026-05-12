@@ -48,6 +48,20 @@ class Test {
     if ((string)rootFirst["name"] != "root-item") return 1;
     if ((string)rootValues[1] != "x") return 1;
 
+    var coreAst = RCLImpl.Core.RCL.Parse(src);
+    if (coreAst.Kind != "document") return 1;
+    var coreObj = RCLImpl.Core.RCL.ToObject(coreAst);
+    var coreRoot = (Dictionary<string, object>)coreObj["root"];
+    var coreServices = (Dictionary<string, object>)coreRoot["services"];
+    var coreApi = (Dictionary<string, object>)coreServices["api"];
+    if ((string)coreApi["title"] != "My Name") return 1;
+
+    var coreType = typeof(RCLImpl.Core.RCL);
+    if (coreType.GetMethod("Format") != null) return 1;
+    if (coreType.GetMethod("ToYAML") != null) return 1;
+    if (coreType.GetMethod("ToTOML") != null) return 1;
+    if (coreType.GetMethod("ToHCL") != null) return 1;
+
     Console.WriteLine("ok");
     return 0;
   }

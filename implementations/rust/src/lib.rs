@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod core;
 pub mod convert;
 pub mod error;
 pub mod formatter;
@@ -10,5 +11,5 @@ pub use formatter::format;
 pub use convert::{to_hcl, to_object, to_toml, to_yaml};
 
 pub fn parse(text: &str) -> Result<ast::DocumentNode, ParseError> {
-    parser::Parser::new(text)?.parse()
+    core::parse(text)
 }

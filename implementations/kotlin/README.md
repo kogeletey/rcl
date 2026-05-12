@@ -4,15 +4,21 @@
 
 Kotlin/JVM parser/formatter/converter for full RCL spec.
 
-## Usage
+## Core API (`io.rcl.core.RCL`)
 
 ```kotlin
-val ast = Parser.parse(source)
-val obj = Converters.toObject(ast)
-val yaml = Converters.toYaml(ast)
-val toml = Converters.toToml(ast)
-val hcl = Converters.toHcl(ast)
-val out = Formatter.format(ast)
+val ast = io.rcl.core.RCL.parse(source)
+val obj = io.rcl.core.RCL.toObject(ast)
+```
+
+## Extended API (`io.rcl.RCL`)
+
+```kotlin
+val ast = RCL.parse(source)
+val out = RCL.format(ast)
+val yaml = RCL.toYaml(ast)
+val toml = RCL.toToml(ast)
+val hcl = RCL.toHcl(ast)
 ```
 
 Constraints: `#` comments only, strings in double quotes only, dotted keys are nested, duplicate/conflicting keys fail.

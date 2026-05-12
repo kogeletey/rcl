@@ -192,6 +192,18 @@ let to_object d =
   | Some v -> SM.singleton "root" (node_val v)
   | None ->
     List.fold_left (fun a b -> if b.arg=None then SM.add b.name (VO(block_obj b)) a else SM.add (named_base b.name) (VO (SM.singleton (Option.get b.arg) (VO(block_obj b)))) a) SM.empty d.blocks
+
+module Core = struct
+  type nonrec num = num
+  type nonrec node = node
+  type nonrec block = block
+  type nonrec document = document
+  type nonrec value = value
+
+  let parse = parse
+  let to_object = to_object
+end
+
 let rec scalar = function VS s->q s | VN(I n)->string_of_int n | VN(F f)->Printf.sprintf "%g" f | VB b->if b then "true" else "false" | VA xs->"["^String.concat ", " (List.map scalar xs)^"]" | VO _->"{}"
 let rec yaml i = function
   | VA xs -> String.concat "\n" (List.map (fun x -> let p=String.make (2*i) ' ' in match x with VO _ | VA _ -> p^"-\n"^yaml (i+1) x | _ -> p^"- "^scalar x) xs)

@@ -15,6 +15,15 @@ hcl, _ := rcl.ToHCL(doc)
 out, _ := rcl.Format(doc)
 ```
 
+Core-only usage:
+
+```go
+import core "github.com/rcl/parser-go/core"
+
+doc, err := core.Parse(source)
+obj := core.ToObject(doc)
+```
+
 ## Test
 
 ```bash

@@ -1,4 +1,6 @@
 local rcl = dofile("rcl.lua")
+local core = dofile("rcl/core.lua")
+local extended = dofile("rcl/extended.lua")
 
 local src = table.concat({
   "config do",
@@ -16,12 +18,20 @@ local src = table.concat({
 local ast = rcl.parse(src)
 if ast.kind ~= "document" or ast.blocks[1].name ~= "config" then error("parse") end
 
+local core_ast = core.parse(src)
+if core_ast.kind ~= core.types.DOCUMENT then error("core-parse") end
+
 local obj = rcl.toObject(ast)
+local core_obj = core.to_object(core_ast)
 if obj.config.enabled ~= true then error("bool") end
 if obj.config.port ~= 8080 then error("int") end
 if obj.config.ratio ~= 3.14 then error("float") end
 if obj.config.tls.cert_path ~= "/etc/cert.pem" then error("dot") end
 if obj.config.regions.us.name ~= "My Name" then error("named") end
+if core_obj.config.port ~= 8080 then error("core-to-object") end
+
+if type(core.format) ~= "nil" then error("core-surface") end
+if type(extended.format) ~= "function" then error("extended-surface") end
 
 if not rcl.toTOML(ast):find("%[config%.regions%.us%]") then error("toml") end
 if not rcl.toYAML(ast):find("regions:") then error("yaml") end

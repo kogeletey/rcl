@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/../src/RCL.php';
+require __DIR__ . '/../src/RCLCore.php';
 
 function ok(bool $v, string $m): void { if (!$v) { fwrite(STDERR, "$m\n"); exit(1); } }
 function fails(string $src, string $needle): void {
@@ -9,6 +10,13 @@ function fails(string $src, string $needle): void {
 }
 
 $src = "root do\n  widget \"blue\" do\n    title = \"My Name\"\n    enabled = true\n    nums = [1, -2, 3.5]\n  end\nend\n";
+$coreAst = RCLCore::parse($src);
+ok($coreAst['type'] === 'Document', 'core ast type');
+$coreObj = RCLCore::toObject($src);
+ok($coreObj['root']['widgets']['blue']['title'] === 'My Name', 'core projection');
+ok(!method_exists(RCLCore::class, 'format'), 'core has no formatter');
+ok(!method_exists(RCLCore::class, 'toYAML'), 'core has no text converters');
+
 $ast = RCL::parse($src);
 ok($ast['type'] === 'Document', 'ast type');
 ok(RCL::format($src) === $src, 'format canonical');
